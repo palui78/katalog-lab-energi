@@ -223,8 +223,8 @@ textarea{resize:vertical; min-height:64px}
   #print-area.sheet{ padding:8mm; }
   @page{ margin:8mm; }
 
-  /* Mode termal 40×30 mm */
-  @page thermal{ size:40mm 30mm; margin:0; }
+  /* Mode termal 40×40 mm */
+  @page thermal{ size:40mm 40mm; margin:0; }
   #print-area.thermal{ padding:0; }
   #print-area.thermal .lbl-t{ page:thermal; }
 }
@@ -237,21 +237,21 @@ textarea{resize:vertical; min-height:64px}
 .lbl .qt .la{font-size:9px; color:#b86a1f}
 .lbl .qt .ld{font-size:8.5px; color:#333; margin-top:2px; line-height:1.35}
 .lbl .qt .ls{font-size:7.5px; color:#555; margin-top:3px; letter-spacing:.04em; text-transform:uppercase}
-/* --- label termal 40×30 mm (teks hitam pekat utk printer termal) --- */
-.lbl-t{ width:40mm; height:30mm; box-sizing:border-box; overflow:hidden; background:#fff; color:#000;
-        font-family:"IBM Plex Mono",monospace; padding:1.3mm 1.5mm;
+/* --- label termal 40×40 mm (teks hitam pekat utk printer termal) --- */
+.lbl-t{ width:40mm; height:40mm; box-sizing:border-box; overflow:hidden; background:#fff; color:#000;
+        font-family:"IBM Plex Mono",monospace; padding:1.8mm 1.8mm;
         page-break-after:always; break-after:page; }
 .lbl-t:last-child{ page-break-after:auto; break-after:auto; }
-.lbl-t .tc{ font-weight:700; font-size:2.2mm; line-height:1.05; text-align:center; letter-spacing:-.2px;
+.lbl-t .tc{ font-weight:700; font-size:2.8mm; line-height:1.02; text-align:center; letter-spacing:-.18px;
             white-space:nowrap; overflow:hidden; color:#000; }
-.lbl-t .row{ display:table; width:100%; table-layout:fixed; margin-top:.8mm; }
-.lbl-t .qbox{ display:table-cell; width:17.5mm; height:17.5mm; vertical-align:middle; }
-.lbl-t .qbox img, .lbl-t .qbox canvas, .lbl-t .qbox table{ width:17.5mm !important; height:17.5mm !important; display:block; image-rendering:pixelated; }
-.lbl-t .info{ display:table-cell; vertical-align:middle; padding-left:1.2mm; line-height:1.18; color:#000; }
-.lbl-t .info .a{ font-size:1.9mm; font-weight:700; color:#000; word-break:break-word; }
-.lbl-t .info .m{ font-size:1.75mm; color:#000; word-break:break-word; }
-.lbl-t .info .d{ font-size:1.75mm; color:#000; }
-.lbl-t .info .o{ font-size:1.55mm; color:#000; margin-top:.5mm; letter-spacing:.02em; }
+.lbl-t .row{ display:table; width:100%; table-layout:fixed; margin-top:1.3mm; }
+.lbl-t .qbox{ display:table-cell; width:22mm; height:22mm; vertical-align:middle; }
+.lbl-t .qbox img, .lbl-t .qbox canvas, .lbl-t .qbox table{ width:22mm !important; height:22mm !important; display:block; image-rendering:pixelated; }
+.lbl-t .info{ display:table-cell; vertical-align:top; padding-left:1.5mm; line-height:1.2; color:#000; }
+.lbl-t .info .a{ font-size:2.05mm; font-weight:700; color:#000; word-break:break-word; }
+.lbl-t .info .m{ font-size:1.9mm; color:#000; word-break:break-word; margin-top:.4mm; }
+.lbl-t .info .d{ font-size:1.75mm; color:#000; margin-top:.35mm; }
+.lbl-t .info .o{ font-size:1.55mm; color:#000; margin-top:.65mm; letter-spacing:.02em; text-transform:uppercase; }
 
 @media (max-width:760px){
   .grid2,.grid3{grid-template-columns:1fr}
@@ -279,9 +279,9 @@ textarea{resize:vertical; min-height:64px}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
       <input id="globalSearch" placeholder="Cari kode / alias / asal…" oninput="App.globalSearch(this.value)">
     </div>
-    <button class="btn" onclick="App.updateFromSheets()" title="Muat data terbaru dari Google Sheets">
+    <button class="btn" onclick="App.pullFromGitHub()" title="Muat data terbaru dari database GitHub">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
-      Update
+      Tarik GitHub
     </button>
     <button class="btn pri" onclick="App.openRegister()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -362,6 +362,12 @@ let DB = {samples:[], tests:[], movements:[], cfg:{}};
 /* Sumber data & QR bawaan (silakan ganti bila URL berubah) */
 const DEFAULT_SHEET_BI='https://docs.google.com/spreadsheets/d/e/2PACX-1vQtKOl4UaFAFRdpgp_sHZiumtOWthyBt3lsA0kMocfuJkUD_wZxTx0uoAo61NSpHh9iiCE7gqrmpgiS/pub?gid=394958894&single=true&output=csv';
 const DEFAULT_QR_URL='https://palui78.github.io/katalog-lab-energi/?kode={kode}';
+const DEFAULT_GITHUB_BRANCH='main';
+const DEFAULT_GITHUB_PATH='data/sitras-db.json';
+const DB_SCHEMA='sitras-db';
+const DB_SCHEMA_VERSION=1;
+const GITHUB_SYNC_DELAY_MS=900;
+const GitHubSync = {timer:null, busy:false, pending:false, lastError:'', lastErrorAt:0};
 let VIEW = 'dash';
 let SEARCH = '';
 let FILTER = {type:'', status:'', q:''};
@@ -373,6 +379,7 @@ const pad = (n,l)=>String(n).padStart(l,'0');
 const uid = p => p+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const todayISO = ()=> new Date().toISOString().slice(0,10);
 const nowLocal = ()=>{ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,16); };
+const hasOwn = (obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
 function fmtDate(s){ if(!s) return '—'; const d=new Date(s); if(isNaN(d)) return s; return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); }
 function fmtDT(s){ if(!s) return '—'; const d=new Date(s); if(isNaN(d)) return s; return d.toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
 function num(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
@@ -396,19 +403,36 @@ function openModal(html){ $('#modal').innerHTML=html; $('#overlay').classList.ad
 function closeModal(){ $('#overlay').classList.remove('show'); $('#modal').innerHTML=''; }
 
 /* ---------- Persistensi DB ---------- */
+function cfgDefaults(cfg){
+  const next = (cfg && typeof cfg==='object') ? {...cfg} : {};
+  if(!hasOwn(next,'origin') || !next.origin) next.origin='LHI';
+  if(!hasOwn(next,'qrUrl')) next.qrUrl = DEFAULT_QR_URL;
+  if(!hasOwn(next,'sheetBI')) next.sheetBI = DEFAULT_SHEET_BI;
+  if(!hasOwn(next,'githubBranch') || !String(next.githubBranch||'').trim()) next.githubBranch = DEFAULT_GITHUB_BRANCH;
+  if(!hasOwn(next,'githubPath') || !String(next.githubPath||'').trim()) next.githubPath = DEFAULT_GITHUB_PATH;
+  if(!hasOwn(next,'githubAutoSync')) next.githubAutoSync = true;
+  if(!hasOwn(next,'githubAutoPull')) next.githubAutoPull = true;
+  if(!hasOwn(next,'labelModeDefault') || !['thermal','a4'].includes(next.labelModeDefault)) next.labelModeDefault = 'thermal';
+  if(!hasOwn(next,'labelCopiesDefault') || !Number.isFinite(Number(next.labelCopiesDefault))) next.labelCopiesDefault = 1;
+  if(!hasOwn(next,'labelAutoPrint')) next.labelAutoPrint = false;
+  if(!hasOwn(next,'labelFooter') || !String(next.labelFooter||'').trim()) next.labelFooter = 'LTO POLIBAN';
+  return next;
+}
 async function loadDB(){
   DB.samples   = (await Store.get(K.S))  || [];
   DB.tests     = (await Store.get(K.T))  || [];
   DB.movements = (await Store.get(K.M))  || [];
-  DB.cfg       = (await Store.get(K.CFG))|| {origin:'LHI'};
-  if(!DB.cfg.qrUrl)   DB.cfg.qrUrl   = DEFAULT_QR_URL;   // QR memuat tautan katalog online
-  if(!DB.cfg.sheetBI) DB.cfg.sheetBI = DEFAULT_SHEET_BI; // sumber Buku Induk (Google Sheets)
+  DB.cfg       = cfgDefaults((await Store.get(K.CFG))|| {origin:'LHI'});
+  if(hasGitHubSource() && DB.cfg.githubAutoPull!==false){
+    await pullFromGitHub({manual:false, quiet:true, renderAfter:false});
+  }
 }
-async function save(part){
+async function save(part, opts={}){
   if(part==='S') await Store.set(K.S, DB.samples);
   if(part==='T') await Store.set(K.T, DB.tests);
   if(part==='M') await Store.set(K.M, DB.movements);
   if(part==='CFG') await Store.set(K.CFG, DB.cfg);
+  if(!opts.skipRemote) scheduleGitHubPush(part);
 }
 
 /* ---------- Generator kode sampel ----------
@@ -629,8 +653,19 @@ function viewReg(){
       <div class="card pad">
         <div class="micro" style="margin-bottom:6px">Pratinjau label QR</div>
         <div class="qrbox"><div class="qr-render" id="regQR" style="opacity:.5"><div style="width:128px;height:128px;display:grid;place-items:center;color:var(--muted);font-size:11px;text-align:center" class="mono">isi data<br>untuk pratinjau</div></div></div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          <div class="grid2">
+            <div class="field" style="margin-bottom:0"><label>Mode label</label>
+              <select id="f_labelMode"><option value="thermal" ${DB.cfg.labelModeDefault!=='a4'?'selected':''}>Termal 40x40</option><option value="a4" ${DB.cfg.labelModeDefault==='a4'?'selected':''}>Lembar A4</option></select>
+            </div>
+            <div class="field" style="margin-bottom:0"><label>Salinan</label><input type="number" id="f_labelCopies" min="1" max="20" value="${esc(labelCopiesValue(DB.cfg.labelCopiesDefault))}"></div>
+          </div>
+          <div class="field" style="margin-bottom:0"><label>Footer label</label><input type="text" class="mono" id="f_labelFooter" value="${esc(labelFooterText())}" placeholder="LTO POLIBAN"></div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2)"><input type="checkbox" id="f_autoPrint" style="width:auto" ${DB.cfg.labelAutoPrint?'checked':''}> Cetak label otomatis setelah sampel disimpan</label>
+        </div>
         <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
           <button class="btn pri" onclick="App.saveSample()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"/></svg> Simpan ke buku induk</button>
+          <button class="btn amber" onclick="App.saveSample(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"/><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Simpan & cetak termal</button>
           <button class="btn ghost" onclick="App.nav('dash')">Batal</button>
         </div>
       </div>
@@ -646,7 +681,7 @@ function viewDB(){
   <div class="view-head">
     <div><h2>Buku Induk Sampel</h2><p>Daftar register seluruh sampel beserta status, lokasi, dan tautan induk. Inilah simpul utama ketertelusuran — setiap baris dapat dibuka untuk melihat riwayat & arsip.</p></div>
     <div class="row">
-      <button class="btn ghost sm" onclick="App.printPicker()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Cetak label</button>
+      <button class="btn amber sm" onclick="App.printPicker()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Cetak label termal</button>
       <button class="btn ghost sm" onclick="App.exportCSV('samples')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Ekspor CSV</button>
       <button class="btn pri sm" onclick="App.openRegister()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Tambah</button>
     </div>
@@ -712,7 +747,7 @@ function detail(code){
         </div>
         <div class="col" style="flex:0 0 168px">
           <div class="qrbox"><div class="qr-render" id="detailQR"></div>
-            <button class="btn sm amber" onclick="App.printOne('${esc(s.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Cetak label</button>
+            <button class="btn sm amber" onclick="App.printOne('${esc(s.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Cetak termal</button>
           </div>
         </div>
       </div>
@@ -896,17 +931,39 @@ function viewGuide(){
     </div></div></div>
 
     <div class="col">
-      <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Sumber Data Google Sheets</h3><span class="micro">basis data CSV</span></div><div class="card-b">
-        <p style="font-size:13px;margin-top:0">Basis data sampel berada di <b>Google Sheets</b>. Tempel tautan CSV "Publish to web" tiap sheet lalu klik <b>Update</b> untuk memuatnya ke aplikasi. Buku Induk wajib; Pengujian & Log opsional.</p>
-        <div class="field"><label>CSV Buku Induk</label><input type="text" class="mono" id="shBI" value="${esc(DB.cfg.sheetBI||'')}" placeholder="https://docs.google.com/…/pub?…output=csv" style="font-size:11px"></div>
-        <div class="field"><label>CSV Pengujian (opsional)</label><input type="text" class="mono" id="shUJI" value="${esc(DB.cfg.sheetUJI||'')}" placeholder="…output=csv" style="font-size:11px"></div>
-        <div class="field"><label>CSV Log Penyimpanan (opsional)</label><input type="text" class="mono" id="shLOG" value="${esc(DB.cfg.sheetLOG||'')}" placeholder="…output=csv" style="font-size:11px"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-          <button class="btn ghost" onclick="App.saveSheets()">Simpan sumber</button>
-          <button class="btn amber" onclick="App.updateFromSheets()">⟳ Update sekarang</button>
+<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Database GitHub</h3><span class="micro">file JSON tunggal</span></div><div class="card-b">
+        <p style="font-size:13px;margin-top:0">Semua data SITRAS dapat disimpan ke <b>satu file JSON di GitHub</b>. Browser tetap memegang cache lokal sebagai cadangan, lalu perubahan baru dikirim ke repo yang sama agar basis data selalu satu.</p>
+        <div class="grid2">
+          <div class="field"><label>Owner GitHub</label><input type="text" class="mono" id="ghOwner" value="${esc(DB.cfg.githubOwner||'')}" placeholder="mis. palui78" style="font-size:11px"></div>
+          <div class="field"><label>Repository</label><input type="text" class="mono" id="ghRepo" value="${esc(DB.cfg.githubRepo||'')}" placeholder="mis. sitras-db" style="font-size:11px"></div>
         </div>
-        <div class="micro" style="margin-top:8px">${DB.cfg.lastSync?('Terakhir sinkron: '+new Date(DB.cfg.lastSync).toLocaleString('id-ID')):'Belum pernah sinkron.'}</div>
-        <div class="warn" style="margin-top:10px;font-size:12px"><b>Catatan:</b> tombol Update hanya jalan bila aplikasi dibuka via <b>http(s)</b> (di-host / server lokal). Bila dibuka langsung dari berkas (<span class="mono">file://</span>), pakai <b>Impor berkas CSV</b> di bawah.</div>
+        <div class="grid2">
+          <div class="field"><label>Branch</label><input type="text" class="mono" id="ghBranch" value="${esc(DB.cfg.githubBranch||DEFAULT_GITHUB_BRANCH)}" placeholder="main" style="font-size:11px"></div>
+          <div class="field"><label>Path file JSON</label><input type="text" class="mono" id="ghPath" value="${esc(DB.cfg.githubPath||DEFAULT_GITHUB_PATH)}" placeholder="data/sitras-db.json" style="font-size:11px"></div>
+        </div>
+        <div class="field"><label>Personal Access Token (fine-grained)</label><input type="password" class="mono" id="ghToken" value="${esc(DB.cfg.githubToken||'')}" placeholder="ghp_... / github_pat_..." style="font-size:11px"></div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;margin-bottom:10px">
+          <label><input type="checkbox" id="ghAutoPull" ${DB.cfg.githubAutoPull!==false?'checked':''}> Muat database GitHub otomatis saat aplikasi dibuka</label>
+          <label><input type="checkbox" id="ghAutoSync" ${DB.cfg.githubAutoSync!==false?'checked':''}> Kirim perubahan otomatis ke GitHub setelah data diubah</label>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+          <button class="btn ghost" onclick="App.saveGitHubConfig()">Simpan konfigurasi</button>
+          <button class="btn" onclick="App.pullFromGitHub()">Tarik dari GitHub</button>
+          <button class="btn amber" onclick="App.pushToGitHub()">Kirim ke GitHub</button>
+        </div>
+        <div class="micro" style="margin-top:8px">Sumber: ${esc(gitSourceSummary())}</div>
+        <div class="micro" style="margin-top:6px">Status sinkron: ${esc(gitStatusText())}</div>
+        <div class="warn" style="margin-top:10px;font-size:12px"><b>Catatan keamanan:</b> token hanya disimpan di browser/perangkat ini dan <b>tidak</b> ikut ditulis ke file JSON GitHub. Gunakan token fine-grained dengan izin <span class="mono">Contents: Read and write</span> hanya untuk repo ini.</div>
+      </div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Migrasi dari CSV / Google Sheets</h3><span class="micro">opsional</span></div><div class="card-b">
+        <p style="font-size:13px;margin-top:0">Bagian ini hanya untuk memindahkan data lama. Setelah data masuk, gunakan GitHub sebagai sumber utama dan hentikan ketergantungan pada Google Sheets.</p>
+        <div class="field"><label>CSV Buku Induk</label><input type="text" class="mono" id="shBI" value="${esc(DB.cfg.sheetBI||'')}" placeholder="https://docs.google.com/.../pub?...output=csv" style="font-size:11px"></div>
+        <div class="field"><label>CSV Pengujian (opsional)</label><input type="text" class="mono" id="shUJI" value="${esc(DB.cfg.sheetUJI||'')}" placeholder="...output=csv" style="font-size:11px"></div>
+        <div class="field"><label>CSV Log Penyimpanan (opsional)</label><input type="text" class="mono" id="shLOG" value="${esc(DB.cfg.sheetLOG||'')}" placeholder="...output=csv" style="font-size:11px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+          <button class="btn ghost" onclick="App.saveSheets()">Simpan sumber CSV</button>
+          <button class="btn amber" onclick="App.updateFromSheets()">Tarik data CSV</button>
+        </div>
         <div style="margin-top:10px;font-size:12.5px"><b>Impor berkas CSV (luring):</b></div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;font-size:12px">
           <label>Buku Induk: <input type="file" accept=".csv" onchange="App.importFile('BI',this)"></label>
@@ -1015,6 +1072,40 @@ function qrPreviewText(){
   if(t) return '(template tanpa {kode}) — sementara QR berisi: '+sample;
   return sample+'   (mode lokal: QR memuat kode saja)';
 }
+function labelModeValue(v){
+  return v==='a4' ? 'a4' : 'thermal';
+}
+function labelCopiesValue(v){
+  const n = parseInt(v, 10);
+  if(!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, 20);
+}
+function labelFooterText(){
+  return String((DB.cfg && DB.cfg.labelFooter) || 'LTO POLIBAN').trim() || 'LTO POLIBAN';
+}
+function labelContextLine(s){
+  const parts = [];
+  if(s.run) parts.push('Run ' + s.run);
+  if(!s.run && s.parent) parts.push('Induk ' + s.parent);
+  if(s.loc) parts.push(s.loc);
+  return parts.slice(0,2).join(' · ');
+}
+function regLabelPrefs(){
+  return {
+    mode: labelModeValue($('#f_labelMode') ? $('#f_labelMode').value : DB.cfg.labelModeDefault),
+    copies: labelCopiesValue($('#f_labelCopies') ? $('#f_labelCopies').value : DB.cfg.labelCopiesDefault),
+    autoPrint: !!($('#f_autoPrint') && $('#f_autoPrint').checked),
+    footer: ($('#f_labelFooter') ? $('#f_labelFooter').value : labelFooterText()).trim() || 'LTO POLIBAN',
+  };
+}
+async function rememberLabelPrefs(prefs){
+  if(!prefs) return;
+  DB.cfg.labelModeDefault = labelModeValue(prefs.mode);
+  DB.cfg.labelCopiesDefault = labelCopiesValue(prefs.copies);
+  DB.cfg.labelAutoPrint = !!prefs.autoPrint;
+  DB.cfg.labelFooter = String(prefs.footer || 'LTO POLIBAN').trim() || 'LTO POLIBAN';
+  await save('CFG',{skipRemote:true});
+}
 function makeQR(el, text, size, level){
   if(!el) return;
   el.innerHTML='';
@@ -1024,42 +1115,58 @@ function makeQR(el, text, size, level){
 }
 
 /* ---------- Cetak label ---------- */
-function labelHTML_A4(s){
-  return `<div class="lbl"><div class="qh" id="lq-${esc(s.id)}"></div>
+function buildPrintJobs(codes, copies, footer){
+  const count = labelCopiesValue(copies || DB.cfg.labelCopiesDefault);
+  const note = String(footer || labelFooterText()).trim() || 'LTO POLIBAN';
+  const jobs = [];
+  codes.map(c=>DB.samples.find(x=>x.id===c)).filter(Boolean).forEach(sample=>{
+    for(let i=0;i<count;i++){
+      jobs.push({sample, footer:note, key:`${sample.id}__${i+1}`});
+    }
+  });
+  return jobs;
+}
+function labelHTML_A4(job){
+  const s = job.sample;
+  const ctx = labelContextLine(s);
+  return `<div class="lbl"><div class="qh" id="lq-${esc(job.key)}"></div>
     <div class="qt">
       <div class="lc">${esc(s.id)}</div>
       ${s.alias?`<div class="la">${esc(s.alias)}</div>`:''}
-      <div class="ld">${esc((MATERIALS[s.material]||s.material||'').split(' (')[0])} · ${esc(s.type)}<br>Reg: ${esc(fmtDate(s.regDate))}${s.loc?'<br>Lokasi: '+esc(s.loc):''}</div>
-      <div class="ls">Lab Teknik Otomotif POLIBAN<br>ISO/IEC 17025</div>
+      <div class="ld">${esc((MATERIALS[s.material]||s.material||'').split(' (')[0])} · ${esc(s.type)}<br>Reg: ${esc(fmtDate(s.regDate))}${ctx?'<br>'+esc(ctx):''}</div>
+      <div class="ls">${esc(job.footer)}<br>ISO/IEC 17025</div>
     </div></div>`;
 }
-function labelHTML_T(s){
+function labelHTML_T(job){
+  const s = job.sample;
   const mat = esc((MATERIALS[s.material]||s.material||'').split(' (')[0]);
+  const ctx = labelContextLine(s);
   return `<div class="lbl-t">
     <div class="tc">${esc(s.id)}</div>
     <div class="row">
-      <div class="qbox" id="lq-${esc(s.id)}"></div>
+      <div class="qbox" id="lq-${esc(job.key)}"></div>
       <div class="info">
         ${s.alias?`<div class="a">${esc(s.alias)}</div>`:''}
         <div class="m">${mat} · ${esc(s.type)}</div>
         <div class="d">Reg: ${esc(fmtDate(s.regDate))}</div>
-        <div class="o">LTO POLIBAN</div>
+        ${ctx?`<div class="d">${esc(ctx)}</div>`:''}
+        <div class="o">${esc(job.footer)}</div>
       </div>
     </div></div>`;
 }
-function doPrint(codes, mode){
-  mode = mode || 'thermal';
-  const samples = codes.map(c=>DB.samples.find(x=>x.id===c)).filter(Boolean);
-  if(!samples.length){ toast('Tidak ada sampel dipilih','err'); return; }
+function doPrint(codes, mode, copies, footer){
+  mode = labelModeValue(mode || DB.cfg.labelModeDefault);
+  const jobs = buildPrintJobs(codes, copies, footer);
+  if(!jobs.length){ toast('Tidak ada sampel dipilih','err'); return; }
   const area=$('#print-area');
   if(mode==='thermal'){
     area.className='thermal';
-    area.innerHTML = samples.map(labelHTML_T).join('');
-    samples.forEach(s=> makeQR(document.getElementById('lq-'+s.id), qrText(s), 190, (typeof QRCode!=='undefined'?QRCode.CorrectLevel.L:null)));
+    area.innerHTML = jobs.map(labelHTML_T).join('');
+    jobs.forEach(job=> makeQR(document.getElementById('lq-'+job.key), qrText(job.sample), 240, (typeof QRCode!=='undefined'?QRCode.CorrectLevel.L:null)));
   } else {
     area.className='sheet';
-    area.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;margin-bottom:6mm;color:#333">Label Sampel — Lab Teknik Otomotif POLIBAN · dicetak ${new Date().toLocaleString('id-ID')}</div><div class="lbl-grid">${samples.map(labelHTML_A4).join('')}</div>`;
-    samples.forEach(s=> makeQR(document.getElementById('lq-'+s.id), qrText(s), 78));
+    area.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;margin-bottom:6mm;color:#333">Label Sampel — Lab Teknik Otomotif POLIBAN · dicetak ${new Date().toLocaleString('id-ID')}</div><div class="lbl-grid">${jobs.map(labelHTML_A4).join('')}</div>`;
+    jobs.forEach(job=> makeQR(document.getElementById('lq-'+job.key), qrText(job.sample), 78));
   }
   document.body.classList.add('printing');
   const done=()=>{ document.body.classList.remove('printing'); window.removeEventListener('afterprint',done); };
@@ -1067,14 +1174,21 @@ function doPrint(codes, mode){
   setTimeout(()=>{ window.print(); }, 350);
 }
 function printOne(code){
-  toast('Cek setelan: kertas 40×30, Margins None, Headers/footers off');
-  doPrint([code],'thermal');
+  const mode = labelModeValue(DB.cfg.labelModeDefault);
+  const copies = labelCopiesValue(DB.cfg.labelCopiesDefault);
+  toast(mode==='thermal' ? 'Cek setelan: kertas 40x40, Margins None, Headers/footers off' : 'Siapkan printer A4 dan pastikan skala 100%');
+  doPrint([code], mode, copies, labelFooterText());
 }
 function printPicker(){
   if(!DB.samples.length){ toast('Belum ada sampel','err'); return; }
   openModal(`
     <div class="modal-h"><h3>Cetak Label QR</h3><button class="x" onclick="App.closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
     <div class="modal-b">
+      <div class="grid2" style="margin-bottom:12px">
+        <div class="field" style="margin-bottom:0"><label>Salinan per sampel</label><input type="number" id="pickCopies" min="1" max="20" value="${esc(labelCopiesValue(DB.cfg.labelCopiesDefault))}"></div>
+        <div class="field" style="margin-bottom:0"><label>Footer label</label><input type="text" class="mono" id="pickFooter" value="${esc(labelFooterText())}" placeholder="LTO POLIBAN"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2);margin-bottom:12px"><input type="checkbox" id="pickRemember" style="width:auto" checked> Simpan pengaturan ini sebagai default pelabelan</label>
       <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span class="micro">Pilih sampel</span>
         <span><button class="btn sm ghost" onclick="App._pickAll(true)">Semua</button> <button class="btn sm ghost" onclick="App._pickAll(false)">Kosongkan</button></span></div>
       <div style="max-height:46vh;overflow-y:auto;border:1px solid var(--line);border-radius:9px">
@@ -1083,12 +1197,12 @@ function printPicker(){
         </tbody></table>
       </div>
       <div class="callout" style="margin-top:12px;font-size:12px">
-        <b>Setelan printer termal (X58MP2 · stiker 40×30 mm).</b> Di dialog cetak: pilih ukuran kertas <b>40×30 mm</b> (atau atur di properti driver), <b>Margins → None / Tidak ada</b>, hilangkan centang <b>Headers and footers / Kop &amp; footer</b>, dan <b>Scale 100%</b> (jangan “Fit to page”). Tombol <b>Cetak termal 40×30</b> sudah menata label pas satu stiker.
+        <b>Setelan printer termal (X58MP2 · stiker 40x40 mm).</b> Di dialog cetak: pilih ukuran kertas <b>40x40 mm</b> (atau atur custom size di properti driver), <b>Margins → None / Tidak ada</b>, hilangkan centang <b>Headers and footers / Kop &amp; footer</b>, dan <b>Scale 100%</b> (jangan “Fit to page”). Tombol <b>Cetak termal 40x40</b> sudah menata label pas satu stiker.
       </div>
     </div>
     <div class="modal-f"><button class="btn ghost" onclick="App.closeModal()">Batal</button>
       <button class="btn ghost" onclick="App._printSelected('a4')">Lembar A4</button>
-      <button class="btn amber" onclick="App._printSelected('thermal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Cetak termal 40×30</button></div>
+      <button class="btn amber" onclick="App._printSelected('thermal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Cetak termal 40x40</button></div>
   `);
 }
 
@@ -1109,16 +1223,22 @@ function readSampleForm(){
     createdAt:new Date().toISOString()
   };
 }
-function saveSample(){
+async function saveSample(forceThermal=false){
   const s = readSampleForm();
+  const prefs = regLabelPrefs();
   if(!s.id){ toast('Kode sampel wajib diisi','err'); return; }
   if(DB.samples.some(x=>x.id===s.id)){ toast('Kode '+s.id+' sudah ada','err'); return; }
-  DB.samples.push(s); save('S');
+  await rememberLabelPrefs(prefs);
+  DB.samples.push(s); await save('S');
   // log penyimpanan otomatis bila ada lokasi
-  if(s.loc){ DB.movements.push({id:uid('mov'), sampleCode:s.id, action:'Masuk', toLocation:s.loc, datetime:new Date().toISOString(), person:s.custodian||'', note:'Registrasi awal'}); save('M'); }
+  if(s.loc){ DB.movements.push({id:uid('mov'), sampleCode:s.id, action:'Masuk', toLocation:s.loc, datetime:new Date().toISOString(), person:s.custodian||'', note:'Registrasi awal'}); await save('M'); }
   toast('Sampel '+s.id+' tersimpan ke buku induk');
   VIEW='db'; render();
   setTimeout(()=>detail(s.id), 120);
+  if(forceThermal || prefs.autoPrint){
+    const mode = forceThermal ? 'thermal' : prefs.mode;
+    setTimeout(()=>doPrint([s.id], mode, prefs.copies, prefs.footer), 220);
+  }
 }
 function editSample(code){
   const s=DB.samples.find(x=>x.id===code); if(!s) return;
@@ -1367,7 +1487,9 @@ function seed(){
 }
 function resetAll(){
   if(!confirm('Hapus SEMUA data sampel, pengujian, dan log? Tindakan ini tidak dapat dibatalkan.')) return;
-  DB={samples:[],tests:[],movements:[],cfg:{origin:'LHI'}};
+  const keepCfg = cfgDefaults(DB.cfg||{origin:'LHI'});
+  delete keepCfg.lastGitHubError;
+  DB={samples:[],tests:[],movements:[],cfg:keepCfg};
   save('S'); save('T'); save('M'); save('CFG');
   toast('Semua data direset'); VIEW='dash'; render();
 }
@@ -1415,7 +1537,218 @@ async function _clearQrUrl(){
   toast('Mode lokal aktif (QR memuat kode saja)'); _previewQrUrl();
 }
 /* ============================================================
-   SINKRONISASI GOOGLE SHEETS (CSV)  →  memuat data ke aplikasi
+   DATABASE GITHUB (JSON tunggal) + cache lokal
+   ============================================================ */
+function gitTrim(v){ return String(v==null?'':v).trim(); }
+function githubOwner(){ return gitTrim(DB.cfg.githubOwner); }
+function githubRepo(){ return gitTrim(DB.cfg.githubRepo); }
+function githubBranch(){ return gitTrim(DB.cfg.githubBranch || DEFAULT_GITHUB_BRANCH) || DEFAULT_GITHUB_BRANCH; }
+function githubPath(){ return gitTrim(DB.cfg.githubPath || DEFAULT_GITHUB_PATH) || DEFAULT_GITHUB_PATH; }
+function hasGitHubSource(){ return !!(githubOwner() && githubRepo() && githubPath()); }
+function hasGitHubWrite(){ return hasGitHubSource() && !!gitTrim(DB.cfg.githubToken); }
+function githubPathEncoded(){ return githubPath().split('/').filter(Boolean).map(encodeURIComponent).join('/'); }
+function githubContentsUrl(){ return `https://api.github.com/repos/${encodeURIComponent(githubOwner())}/${encodeURIComponent(githubRepo())}/contents/${githubPathEncoded()}`; }
+function githubReadUrl(){ return `${githubContentsUrl()}?ref=${encodeURIComponent(githubBranch())}`; }
+function githubHeaders(){
+  const h = {'Accept':'application/vnd.github+json'};
+  const token = gitTrim(DB.cfg.githubToken);
+  if(token) h.Authorization = `Bearer ${token}`;
+  return h;
+}
+function b64EncodeUnicode(text){
+  const bytes = new TextEncoder().encode(String(text));
+  let binary = '';
+  bytes.forEach(b=>binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+function b64DecodeUnicode(text){
+  const clean = String(text||'').replace(/\n/g,'');
+  const binary = atob(clean);
+  const bytes = Uint8Array.from(binary, c=>c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+function gitSharedConfig(){
+  return {
+    origin: DB.cfg.origin || 'LHI',
+    qrUrl: hasOwn(DB.cfg,'qrUrl') ? DB.cfg.qrUrl : DEFAULT_QR_URL,
+  };
+}
+function serializeGitHubDb(){
+  return {
+    schema: DB_SCHEMA,
+    version: DB_SCHEMA_VERSION,
+    updatedAt: new Date().toISOString(),
+    app: 'SITRAS',
+    sharedConfig: gitSharedConfig(),
+    samples: DB.samples,
+    tests: DB.tests,
+    movements: DB.movements,
+  };
+}
+function applyGitHubDb(payload){
+  if(!payload || typeof payload!=='object') throw new Error('Format database GitHub tidak valid');
+  DB.samples = Array.isArray(payload.samples) ? payload.samples : [];
+  DB.tests = Array.isArray(payload.tests) ? payload.tests : [];
+  DB.movements = Array.isArray(payload.movements) ? payload.movements : [];
+  const shared = (payload.sharedConfig && typeof payload.sharedConfig==='object')
+    ? payload.sharedConfig
+    : ((payload.cfg && typeof payload.cfg==='object') ? payload.cfg : {});
+  if(hasOwn(shared,'origin') && shared.origin) DB.cfg.origin = shared.origin;
+  if(hasOwn(shared,'qrUrl')) DB.cfg.qrUrl = shared.qrUrl;
+}
+function captureGitHubConfigFromForm(){
+  if(!$('#ghOwner')) return false;
+  DB.cfg.githubOwner = gitTrim($('#ghOwner').value);
+  DB.cfg.githubRepo = gitTrim($('#ghRepo').value);
+  DB.cfg.githubBranch = gitTrim($('#ghBranch').value) || DEFAULT_GITHUB_BRANCH;
+  DB.cfg.githubPath = gitTrim($('#ghPath').value) || DEFAULT_GITHUB_PATH;
+  DB.cfg.githubToken = gitTrim($('#ghToken').value);
+  DB.cfg.githubAutoPull = !!($('#ghAutoPull') && $('#ghAutoPull').checked);
+  DB.cfg.githubAutoSync = !!($('#ghAutoSync') && $('#ghAutoSync').checked);
+  return true;
+}
+function gitSourceSummary(){
+  if(!hasGitHubSource()) return 'Belum dikonfigurasi.';
+  return `${githubOwner()}/${githubRepo()} @ ${githubBranch()} / ${githubPath()}`;
+}
+function gitStatusText(){
+  const parts = [];
+  if(DB.cfg.lastGitHubPull) parts.push(`tarik ${fmtDT(DB.cfg.lastGitHubPull)}`);
+  if(DB.cfg.lastGitHubPush) parts.push(`kirim ${fmtDT(DB.cfg.lastGitHubPush)}`);
+  if(!parts.length) return 'Belum pernah sinkron.';
+  return parts.join(' · ');
+}
+function reportGitHubError(message, manual){
+  const text = String(message||'Sinkron GitHub gagal');
+  DB.cfg.lastGitHubError = text;
+  if(manual){
+    toast(text,'err');
+  }else{
+    const now = Date.now();
+    if(GitHubSync.lastError!==text || (now-GitHubSync.lastErrorAt)>15000){
+      GitHubSync.lastError = text;
+      GitHubSync.lastErrorAt = now;
+      toast(text,'err');
+    }
+  }
+  if(VIEW==='guide') render();
+}
+function scheduleGitHubPush(reason){
+  if(!hasGitHubSource() || !hasGitHubWrite() || DB.cfg.githubAutoSync===false) return;
+  GitHubSync.pending = true;
+  if(GitHubSync.busy) return;
+  clearTimeout(GitHubSync.timer);
+  GitHubSync.timer = setTimeout(()=>{
+    GitHubSync.timer = null;
+    pushToGitHub({manual:false, reason:reason||'autosave'});
+  }, GITHUB_SYNC_DELAY_MS);
+}
+async function saveGitHubConfig(){
+  captureGitHubConfigFromForm();
+  DB.cfg = cfgDefaults(DB.cfg);
+  await save('CFG',{skipRemote:true});
+  toast('Konfigurasi GitHub disimpan di perangkat ini');
+  if(VIEW==='guide') render();
+}
+async function pullFromGitHub({manual=true, quiet=false, renderAfter=true}={}){
+  if(captureGitHubConfigFromForm()) await save('CFG',{skipRemote:true});
+  if(!hasGitHubSource()){
+    if(manual && !quiet) toast('Konfigurasi GitHub belum lengkap','err');
+    return false;
+  }
+  try{
+    const res = await fetch(githubReadUrl(), {headers: githubHeaders(), cache:'no-store'});
+    if(res.status===404) throw new Error('File database GitHub belum ada. Kirim data lokal dulu ke repo.');
+    if(!res.ok){
+      const txt = await res.text();
+      throw new Error(`Gagal menarik data GitHub (HTTP ${res.status})${txt ? ': '+txt.slice(0,120) : ''}`);
+    }
+    const meta = await res.json();
+    const payload = JSON.parse(b64DecodeUnicode(meta.content||''));
+    applyGitHubDb(payload);
+    DB.cfg.lastGitHubPull = new Date().toISOString();
+    DB.cfg.lastGitHubSha = meta.sha || DB.cfg.lastGitHubSha || '';
+    DB.cfg.lastSync = DB.cfg.lastGitHubPull;
+    DB.cfg = cfgDefaults(DB.cfg);
+    await save('S',{skipRemote:true});
+    await save('T',{skipRemote:true});
+    await save('M',{skipRemote:true});
+    await save('CFG',{skipRemote:true});
+    if(renderAfter) render();
+    if(manual && !quiet) toast(`Data GitHub dimuat: ${DB.samples.length} sampel`);
+    return true;
+  }catch(e){
+    if(!quiet) reportGitHubError(e.message||e, manual);
+    return false;
+  }
+}
+async function pushToGitHub({manual=true, reason='manual'}={}){
+  if(captureGitHubConfigFromForm()) await save('CFG',{skipRemote:true});
+  if(!hasGitHubSource()){
+    if(manual) toast('Konfigurasi GitHub belum lengkap','err');
+    return false;
+  }
+  if(!hasGitHubWrite()){
+    if(manual) toast('Token GitHub diperlukan untuk kirim data','err');
+    return false;
+  }
+  if(GitHubSync.busy){
+    GitHubSync.pending = true;
+    return false;
+  }
+  GitHubSync.busy = true;
+  GitHubSync.pending = false;
+  clearTimeout(GitHubSync.timer);
+  GitHubSync.timer = null;
+  try{
+    let existing = null;
+    const head = await fetch(githubReadUrl(), {headers: githubHeaders(), cache:'no-store'});
+    if(head.status!==404){
+      if(!head.ok){
+        const txt = await head.text();
+        throw new Error(`Gagal membaca metadata GitHub (HTTP ${head.status})${txt ? ': '+txt.slice(0,120) : ''}`);
+      }
+      existing = await head.json();
+    }
+    const body = {
+      message:`chore: update SITRAS database (${reason})`,
+      content:b64EncodeUnicode(JSON.stringify(serializeGitHubDb(), null, 2)),
+      branch:githubBranch(),
+    };
+    if(existing && existing.sha) body.sha = existing.sha;
+    const res = await fetch(githubContentsUrl(), {
+      method:'PUT',
+      headers:{...githubHeaders(),'Content-Type':'application/json'},
+      body:JSON.stringify(body),
+    });
+    if(res.status===409) throw new Error('Konflik versi GitHub. Tarik data terbaru dulu, lalu kirim ulang.');
+    if(!res.ok){
+      const txt = await res.text();
+      throw new Error(`Gagal mengirim data ke GitHub (HTTP ${res.status})${txt ? ': '+txt.slice(0,160) : ''}`);
+    }
+    const out = await res.json();
+    DB.cfg.lastGitHubPush = new Date().toISOString();
+    DB.cfg.lastGitHubSha = (out.content && out.content.sha) || (out.commit && out.commit.sha) || DB.cfg.lastGitHubSha || '';
+    DB.cfg.lastSync = DB.cfg.lastGitHubPush;
+    delete DB.cfg.lastGitHubError;
+    await save('CFG',{skipRemote:true});
+    if(manual) toast('Database berhasil dikirim ke GitHub');
+    if(VIEW==='guide') render();
+    return true;
+  }catch(e){
+    reportGitHubError(e.message||e, manual);
+    return false;
+  }finally{
+    GitHubSync.busy = false;
+    if(GitHubSync.pending){
+      GitHubSync.pending = false;
+      scheduleGitHubPush('queued');
+    }
+  }
+}
+
+/* ============================================================
+   MIGRASI CSV / GOOGLE SHEETS  →  memuat data lama ke aplikasi
    ============================================================ */
 function _csvParse(text){
   text=String(text).replace(/\r\n/g,'\n').replace(/\r/g,'\n');
@@ -1498,10 +1831,21 @@ async function _saveSheets(){
   await save('CFG'); toast('Sumber Google Sheets disimpan');
 }
 function _pickAll(v){ document.querySelectorAll('.pick').forEach(c=>c.checked=v); }
-function _printSelected(mode){
+async function _printSelected(mode){
   const codes=[...document.querySelectorAll('.pick:checked')].map(c=>c.value);
   if(!codes.length){ toast('Pilih minimal satu sampel','err'); return; }
-  closeModal(); doPrint(codes, mode||'thermal');
+  const copies = labelCopiesValue($('#pickCopies') ? $('#pickCopies').value : DB.cfg.labelCopiesDefault);
+  const footer = ($('#pickFooter') ? $('#pickFooter').value : labelFooterText()).trim() || 'LTO POLIBAN';
+  const remember = !$('#pickRemember') || $('#pickRemember').checked;
+  if(remember){
+    await rememberLabelPrefs({
+      mode: labelModeValue(mode || DB.cfg.labelModeDefault),
+      copies,
+      autoPrint: !!DB.cfg.labelAutoPrint,
+      footer,
+    });
+  }
+  closeModal(); doPrint(codes, mode||'thermal', copies, footer);
 }
 
 /* ============================================================
@@ -1517,10 +1861,22 @@ const App = {
   printPicker, printOne, _pickAll, _printSelected,
   _refreshCode, _toggleManual,
   _previewQrUrl, _saveQrUrl, _clearQrUrl,
+  saveGitHubConfig, pullFromGitHub, pushToGitHub,
   updateFromSheets:_updateFromSheets, saveSheets:_saveSheets, importFile:_importFile,
 };
 window.App = App;
-
+const _vg=viewGuide,_save0=save,_cfg0=cfgDefaults,_sheet={t:0,b:0,p:0,e:0};
+  cfgDefaults=function(c){c=_cfg0(c||{});if(!('sheetWriteUrl' in c))c.sheetWriteUrl='';if(!('sheetWriteToken' in c))c.sheetWriteToken='';if(!('sheetWriteAutoSync' in c))c.sheetWriteAutoSync=true;return c;};
+  function _sUrl(){return gitTrim(DB.cfg.sheetWriteUrl||(((DB.cfg.sheetBI||'').includes('script.google.com/'))?DB.cfg.sheetBI:''));}
+  function _sCap(){if($('#gsWriteUrl'))DB.cfg.sheetWriteUrl=gitTrim($('#gsWriteUrl').value);if($('#gsWriteToken'))DB.cfg.sheetWriteToken=gitTrim($('#gsWriteToken').value);if($('#gsWriteAuto'))DB.cfg.sheetWriteAutoSync=!!$('#gsWriteAuto').checked;DB.cfg=cfgDefaults(DB.cfg);}
+  function _sData(r){const o={schema:'sitras-sheet-sync',version:1,app:'SITRAS',reason:r||'manual',updatedAt:new Date().toISOString(),samples:DB.samples,tests:DB.tests,movements:DB.movements,sharedConfig:{origin:DB.cfg.origin||'',qrUrl:DB.cfg.qrUrl||''}};const t=gitTrim(DB.cfg.sheetWriteToken);if(t)o.token=t;return o;}
+  async function saveSheetSyncConfig(){_sCap();await _save0('CFG',{skipRemote:true});toast('Konfigurasi Google Sheets disimpan');if(VIEW==='guide')render();}
+  async function pushToGoogleSheets(m=1,r='manual'){_sCap();const u=_sUrl();if(!u){if(m)toast('URL Web App Google Sheets belum diisi','err');return 0;}if(_sheet.b){_sheet.p=1;return 0;}_sheet.b=1;try{const x=await fetch(u,{method:'POST',headers:{'Accept':'application/json, text/plain, */*','Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(_sData(r))}),tx=await x.text();let j=null;try{j=tx?JSON.parse(tx):null}catch(e){}if(!x.ok)throw new Error('HTTP '+x.status+(tx?': '+tx.slice(0,140):''));if(j&&j.ok===false)throw new Error(j.message||'Sinkron Google Sheets ditolak');DB.cfg.lastSheetPush=new Date().toISOString();DB.cfg.lastSheetSummary=j&&j.summary?String(j.summary):`${DB.samples.length} sampel | ${DB.tests.length} uji | ${DB.movements.length} log`;delete DB.cfg.lastSheetError;await _save0('CFG',{skipRemote:true});if(m)toast(j&&j.message?j.message:'Data berhasil dikirim ke Google Sheets');if(VIEW==='guide')render();return 1}catch(e){DB.cfg.lastSheetError=String(e&&e.message||e);await _save0('CFG',{skipRemote:true});if(m||Date.now()-_sheet.e>15000){_sheet.e=Date.now();toast('Sinkron Google Sheets gagal: '+DB.cfg.lastSheetError,'err');}if(VIEW==='guide')render();return 0}finally{_sheet.b=0;if(_sheet.p){_sheet.p=0;_sSched('queued');}}}
+  function _sSched(r){if(!_sUrl()||DB.cfg.sheetWriteAutoSync===false)return;clearTimeout(_sheet.t);_sheet.t=setTimeout(()=>pushToGoogleSheets(0,r||'autosave'),1200);}
+  save=async function(p,o={}){const z=await _save0(p,o);if(!(o&&o.localOnly))_sSched(p);return z;};
+  viewGuide=function(){const st=DB.cfg.lastSheetPush?fmtDT(DB.cfg.lastSheetPush):'Belum pernah sinkron.';const er=DB.cfg.lastSheetError?`<div class="warn" style="margin-top:10px;font-size:12px">${esc(DB.cfg.lastSheetError)}</div>`:'';const c=`<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Google Sheets Live Sync</h3><span class="micro">Apps Script Web App</span></div><div class="card-b"><p style="font-size:13px;margin-top:0">CSV Google Sheets hanya bisa dibaca. Untuk pencatatan otomatis dari web, isi URL Web App Apps Script di sini.</p><div class="field"><label>URL Web App Google Sheets</label><input type="text" class="mono" id="gsWriteUrl" value="${esc(DB.cfg.sheetWriteUrl||'')}" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:11px"></div><div class="field"><label>Token sinkron (opsional)</label><input type="password" class="mono" id="gsWriteToken" value="${esc(DB.cfg.sheetWriteToken||'')}" placeholder="samakan dengan WRITE_TOKEN" style="font-size:11px"></div><div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;margin-bottom:10px"><label><input type="checkbox" id="gsWriteAuto" ${DB.cfg.sheetWriteAutoSync!==false?'checked':''}> Kirim perubahan otomatis ke Google Sheets</label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><button class="btn ghost" onclick="App.saveSheetSyncConfig()">Simpan konfigurasi</button><button class="btn amber" onclick="App.pushToGoogleSheets()">Kirim ke Google Sheets</button></div><div class="micro" style="margin-top:8px">Status: ${esc(st)}${DB.cfg.lastSheetSummary?' | '+esc(DB.cfg.lastSheetSummary):''}</div>${er}</div></div>`;const m='<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Migrasi dari CSV / Google Sheets</h3><span class="micro">opsional</span></div><div class="card-b">';const g=_vg();return g.includes('Google Sheets Live Sync')?g:g.includes(m)?g.replace(m,c+m):c+g;};
+  App.saveSheetSyncConfig=saveSheetSyncConfig;App.pushToGoogleSheets=()=>pushToGoogleSheets(1,'manual');DB.cfg=cfgDefaults(DB.cfg);if(VIEW==='guide')render();
+  
 (async function init(){
   await loadDB();
   render();
