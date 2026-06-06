@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "ecmel.vscode-html-css",
+    "christian-kohler.path-intellisense",
+    "ritwickdey.liveserver"
+  ]
+}

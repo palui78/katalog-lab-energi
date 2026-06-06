@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SITRAS: Jalankan server lokal 8765",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "-m",
+        "http.server",
+        "8765"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "SITRAS: Buka halaman utama",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "Start-Process 'http://127.0.0.1:8765/sistem-lab-ketertelusuran.html'"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SITRAS: Backup file utama",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'; Copy-Item -LiteralPath 'sistem-lab-ketertelusuran.html' -Destination (\"sistem-lab-ketertelusuran BACKUP-\" + $stamp + '.html')"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

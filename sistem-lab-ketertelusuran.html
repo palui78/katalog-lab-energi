@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lab Teknik Otomotif POLIBAN — Ketertelusuran Sampel (SITRAS)</title>
+<title>Lab Energi Terbarukan POLIBAN — Ketertelusuran Sampel (SITRAS)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&display=swap" rel="stylesheet">
@@ -266,12 +266,12 @@ textarea{resize:vertical; min-height:64px}
 <header class="top">
   <div class="top-inner">
     <div class="brand">
-      <div class="logo" title="Lab Teknik Otomotif POLIBAN">
+      <div class="logo" id="brandLogo" title="Lab Energi Terbarukan POLIBAN">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5.5 17a2 2 0 0 0 1.8 3h9.4a2 2 0 0 0 1.8-3L14 9.5V3"/><path d="M7.5 14h9"/></svg>
       </div>
       <div>
-        <h1 class="serif">Lab Teknik Otomotif POLIBAN</h1>
-        <div class="sub">Politeknik Negeri Banjarmasin · Ketertelusuran Sampel (SITRAS) · ISO/IEC 17025</div>
+        <h1 class="serif" id="brandName">Lab Energi Terbarukan POLIBAN</h1>
+        <div class="sub" id="brandSub">Politeknik Negeri Banjarmasin · Ketertelusuran Sampel (SITRAS) · ISO/IEC 17025</div>
       </div>
     </div>
     <div class="spacer"></div>
@@ -279,9 +279,12 @@ textarea{resize:vertical; min-height:64px}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
       <input id="globalSearch" placeholder="Cari kode / alias / asal…" oninput="App.globalSearch(this.value)">
     </div>
-    <button class="btn" onclick="App.pullFromGitHub()" title="Muat data terbaru dari database GitHub">
+    <button class="btn" onclick="App.openSyncHub()" title="Buka pengaturan sinkron atau tarik data GitHub">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
-      Tarik GitHub
+      Sinkron Data
+    </button>
+    <button class="btn" onclick="App.openResetModal()" title="Reset data (commissioning)" style="color:#a8432e;padding-left:11px;padding-right:11px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 2v6h6"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg>
     </button>
     <button class="btn pri" onclick="App.openRegister()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -360,7 +363,8 @@ const K = {S:'sitras:samples', T:'sitras:tests', M:'sitras:movements', CFG:'sitr
 let DB = {samples:[], tests:[], movements:[], cfg:{}};
 
 /* Sumber data & QR bawaan (silakan ganti bila URL berubah) */
-const DEFAULT_SHEET_BI='https://docs.google.com/spreadsheets/d/e/2PACX-1vQtKOl4UaFAFRdpgp_sHZiumtOWthyBt3lsA0kMocfuJkUD_wZxTx0uoAo61NSpHh9iiCE7gqrmpgiS/pub?gid=394958894&single=true&output=csv';
+const LEGACY_DEFAULT_SHEET_BI='https://docs.google.com/spreadsheets/d/e/2PACX-1vQtKOl4UaFAFRdpgp_sHZiumtOWthyBt3lsA0kMocfuJkUD_wZxTx0uoAo61NSpHh9iiCE7gqrmpgiS/pub?gid=394958894&single=true&output=csv';
+const DEFAULT_SHEET_BI='';
 const DEFAULT_QR_URL='https://palui78.github.io/katalog-lab-energi/?kode={kode}';
 const DEFAULT_GITHUB_BRANCH='main';
 const DEFAULT_GITHUB_PATH='data/sitras-db.json';
@@ -368,6 +372,13 @@ const DB_SCHEMA='sitras-db';
 const DB_SCHEMA_VERSION=1;
 const GITHUB_SYNC_DELAY_MS=900;
 const GitHubSync = {timer:null, busy:false, pending:false, lastError:'', lastErrorAt:0};
+const SHEET_SYNC_SCHEMA='sitras-sheet-sync';
+const SHEET_SYNC_VERSION=1;
+const GSHEET_SYNC_DELAY_MS=1200;
+const DEFAULT_SHEET_WRITE_URL='https://script.google.com/macros/s/AKfycbz0TbXdQINlYtVYTbG_Zk-O2VqEYpcGHhRE9hyuFLVDSAXEI6KnWvygFRT5kmThZc5S/exec';
+const DEFAULT_LAB_NAME='Lab Energi Terbarukan POLIBAN';
+const DEFAULT_LAB_SUB='Politeknik Negeri Banjarmasin · Ketertelusuran Sampel (SITRAS) · ISO/IEC 17025';
+const SheetSync = {timer:null, busy:false, pending:false, lastError:'', lastErrorAt:0};
 let VIEW = 'dash';
 let SEARCH = '';
 let FILTER = {type:'', status:'', q:''};
@@ -406,23 +417,43 @@ function closeModal(){ $('#overlay').classList.remove('show'); $('#modal').inner
 function cfgDefaults(cfg){
   const next = (cfg && typeof cfg==='object') ? {...cfg} : {};
   if(!hasOwn(next,'origin') || !next.origin) next.origin='LHI';
+  if(!hasOwn(next,'labName') || !String(next.labName||'').trim()) next.labName = DEFAULT_LAB_NAME;
+  if(!hasOwn(next,'labSub')  || !String(next.labSub||'').trim())  next.labSub  = DEFAULT_LAB_SUB;
   if(!hasOwn(next,'qrUrl')) next.qrUrl = DEFAULT_QR_URL;
   if(!hasOwn(next,'sheetBI')) next.sheetBI = DEFAULT_SHEET_BI;
+  if(!hasOwn(next,'sheetUJI')) next.sheetUJI = '';
+  if(!hasOwn(next,'sheetLOG')) next.sheetLOG = '';
+  if(!hasOwn(next,'csvSourceMigrated')) next.csvSourceMigrated = false;
+  if(!next.csvSourceMigrated && next.sheetBI===LEGACY_DEFAULT_SHEET_BI){
+    next.sheetBI = '';
+    next.csvSourceMigrated = true;
+  }
   if(!hasOwn(next,'githubBranch') || !String(next.githubBranch||'').trim()) next.githubBranch = DEFAULT_GITHUB_BRANCH;
   if(!hasOwn(next,'githubPath') || !String(next.githubPath||'').trim()) next.githubPath = DEFAULT_GITHUB_PATH;
-  if(!hasOwn(next,'githubAutoSync')) next.githubAutoSync = true;
-  if(!hasOwn(next,'githubAutoPull')) next.githubAutoPull = true;
+  if(!hasOwn(next,'githubAutoSync')) next.githubAutoSync = false;
+  if(!hasOwn(next,'githubAutoPull')) next.githubAutoPull = false;
+  if(!hasOwn(next,'sheetWriteUrl') || !String(next.sheetWriteUrl||'').trim()) next.sheetWriteUrl = DEFAULT_SHEET_WRITE_URL;
+  if(!hasOwn(next,'sheetWriteToken')) next.sheetWriteToken = '';
+  if(!hasOwn(next,'sheetWriteAutoSync')) next.sheetWriteAutoSync = true;
   if(!hasOwn(next,'labelModeDefault') || !['thermal','a4'].includes(next.labelModeDefault)) next.labelModeDefault = 'thermal';
   if(!hasOwn(next,'labelCopiesDefault') || !Number.isFinite(Number(next.labelCopiesDefault))) next.labelCopiesDefault = 1;
   if(!hasOwn(next,'labelAutoPrint')) next.labelAutoPrint = false;
   if(!hasOwn(next,'labelFooter') || !String(next.labelFooter||'').trim()) next.labelFooter = 'LTO POLIBAN';
+  if(!(String(next.githubOwner||'').trim() && String(next.githubRepo||'').trim())) {
+    next.githubAutoPull = false;
+    next.githubAutoSync = false;
+  }
   return next;
 }
 async function loadDB(){
+  const rawCfg = (await Store.get(K.CFG)) || {origin:'LHI'};
   DB.samples   = (await Store.get(K.S))  || [];
   DB.tests     = (await Store.get(K.T))  || [];
   DB.movements = (await Store.get(K.M))  || [];
-  DB.cfg       = cfgDefaults((await Store.get(K.CFG))|| {origin:'LHI'});
+  DB.cfg       = cfgDefaults(rawCfg);
+  if(JSON.stringify(DB.cfg)!==JSON.stringify(rawCfg)){
+    await Store.set(K.CFG, DB.cfg);
+  }
   if(hasGitHubSource() && DB.cfg.githubAutoPull!==false){
     await pullFromGitHub({manual:false, quiet:true, renderAfter:false});
   }
@@ -432,7 +463,10 @@ async function save(part, opts={}){
   if(part==='T') await Store.set(K.T, DB.tests);
   if(part==='M') await Store.set(K.M, DB.movements);
   if(part==='CFG') await Store.set(K.CFG, DB.cfg);
-  if(!opts.skipRemote) scheduleGitHubPush(part);
+  if(!opts.skipRemote){
+    scheduleGitHubPush(part);
+    scheduleSheetPush(part);
+  }
 }
 
 /* ---------- Generator kode sampel ----------
@@ -905,6 +939,12 @@ function viewGuide(){
   return `
   <div class="view-head"><div><h2>Panduan Sistem & Selaras ISO/IEC 17025</h2><p>Ringkasan filosofi, konvensi penomoran, alur 6 tahap, dan pemetaan ke klausul ISO/IEC 17025:2017. Bagian ini juga cocok dijadikan lampiran SOP/tesis.</p></div></div>
 
+  <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Identitas Laboratorium</h3><span class="micro">tampil di header, judul tab, &amp; label cetak</span></div><div class="card-b">
+    <div class="field"><label>Nama laboratorium</label><input type="text" id="brandNameInput" value="${esc(DB.cfg.labName||DEFAULT_LAB_NAME)}" placeholder="Lab Energi Terbarukan POLIBAN"></div>
+    <div class="field"><label>Subjudul</label><input type="text" id="brandSubInput" value="${esc(DB.cfg.labSub||DEFAULT_LAB_SUB)}" placeholder="Politeknik Negeri Banjarmasin · …"></div>
+    <button class="btn amber" onclick="App.saveBranding()">Simpan identitas</button>
+  </div></div>
+
   <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Alur kerja 6 tahap</h3></div><div class="card-b">
     <div class="flowstep">
       <span class="fs">1 · Kode Sampel</span><span class="ar">→</span>
@@ -931,8 +971,8 @@ function viewGuide(){
     </div></div></div>
 
     <div class="col">
-<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Database GitHub</h3><span class="micro">file JSON tunggal</span></div><div class="card-b">
-        <p style="font-size:13px;margin-top:0">Semua data SITRAS dapat disimpan ke <b>satu file JSON di GitHub</b>. Browser tetap memegang cache lokal sebagai cadangan, lalu perubahan baru dikirim ke repo yang sama agar basis data selalu satu.</p>
+<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Database GitHub</h3><span class="micro">opsional · file JSON tunggal</span></div><div class="card-b">
+        <p style="font-size:13px;margin-top:0">GitHub <b>opsional</b>. Kalau koneksinya terasa ribet, SITRAS tetap bisa jalan dengan <b>cache lokal + Google Sheets Live Sync</b>. Pakai GitHub hanya bila Anda memang ingin menyimpan satu file JSON pusat di repo.</p>
         <div class="grid2">
           <div class="field"><label>Owner GitHub</label><input type="text" class="mono" id="ghOwner" value="${esc(DB.cfg.githubOwner||'')}" placeholder="mis. palui78" style="font-size:11px"></div>
           <div class="field"><label>Repository</label><input type="text" class="mono" id="ghRepo" value="${esc(DB.cfg.githubRepo||'')}" placeholder="mis. sitras-db" style="font-size:11px"></div>
@@ -948,15 +988,34 @@ function viewGuide(){
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
           <button class="btn ghost" onclick="App.saveGitHubConfig()">Simpan konfigurasi</button>
+          <button class="btn ghost" onclick="App.testGitHubConnection()">Tes koneksi</button>
           <button class="btn" onclick="App.pullFromGitHub()">Tarik dari GitHub</button>
           <button class="btn amber" onclick="App.pushToGitHub()">Kirim ke GitHub</button>
+          <button class="btn ghost" onclick="App.disableGitHubConfig()">Pakai tanpa GitHub</button>
         </div>
         <div class="micro" style="margin-top:8px">Sumber: ${esc(gitSourceSummary())}</div>
         <div class="micro" style="margin-top:6px">Status sinkron: ${esc(gitStatusText())}</div>
+        ${DB.cfg.lastGitHubError?`<div class="warn" style="margin-top:10px;font-size:12px"><b>Galat terakhir:</b> ${esc(DB.cfg.lastGitHubError)}</div>`:''}
         <div class="warn" style="margin-top:10px;font-size:12px"><b>Catatan keamanan:</b> token hanya disimpan di browser/perangkat ini dan <b>tidak</b> ikut ditulis ke file JSON GitHub. Gunakan token fine-grained dengan izin <span class="mono">Contents: Read and write</span> hanya untuk repo ini.</div>
       </div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Google Sheets Live Sync</h3><span class="micro">Apps Script Web App</span></div><div class="card-b">
+        <p style="font-size:13px;margin-top:0">Agar input web <b>langsung masuk ke Google Sheets</b>, gunakan <b>Apps Script Web App</b>. Link CSV Google Sheets yang dipublish hanya bisa <b>dibaca</b>, jadi tidak bisa dipakai untuk pencatatan otomatis dari browser.</p>
+        <div class="field"><label>URL Web App Google Sheets</label><input type="text" class="mono" id="gsWriteUrl" value="${esc(DB.cfg.sheetWriteUrl||DEFAULT_SHEET_WRITE_URL)}" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:11px"></div>
+        <div class="field"><label>Token sinkron (opsional, disarankan)</label><input type="password" class="mono" id="gsWriteToken" value="${esc(DB.cfg.sheetWriteToken||'')}" placeholder="mis. sitras-aman-2026" style="font-size:11px"></div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;margin-bottom:10px">
+          <label><input type="checkbox" id="gsWriteAuto" ${DB.cfg.sheetWriteAutoSync!==false?'checked':''}> Kirim perubahan otomatis ke Google Sheets setelah data diubah</label>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+          <button class="btn ghost" onclick="App.saveSheetSyncConfig()">Simpan konfigurasi</button>
+          <button class="btn amber" onclick="App.pushToGoogleSheets()">Kirim ke Google Sheets</button>
+        </div>
+        <div class="micro" style="margin-top:8px">Target: ${esc(sheetTargetSummary())}</div>
+        <div class="micro" style="margin-top:6px">Status sinkron: ${esc(sheetStatusText())}</div>
+        ${DB.cfg.lastSheetError?`<div class="warn" style="margin-top:10px;font-size:12px"><b>Galat terakhir:</b> ${esc(DB.cfg.lastSheetError)}</div>`:''}
+        <div class="callout" style="margin-top:10px;font-size:12px"><b>Catatan:</b> template Apps Script sudah disiapkan di file <span class="mono">google-sheets-sync.gs</span>. Deploy sebagai <b>Web App</b>, lalu tempel URL <span class="mono">/exec</span>-nya di sini.</div>
+      </div></div>
       <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Migrasi dari CSV / Google Sheets</h3><span class="micro">opsional</span></div><div class="card-b">
-        <p style="font-size:13px;margin-top:0">Bagian ini hanya untuk memindahkan data lama. Setelah data masuk, gunakan GitHub sebagai sumber utama dan hentikan ketergantungan pada Google Sheets.</p>
+        <p style="font-size:13px;margin-top:0">Bagian ini hanya untuk <b>memindahkan data lama</b>. CSV Google Sheets yang dipublish bersifat <b>read-only</b>. Untuk pencatatan otomatis dari web ke Google Sheets, gunakan kartu <b>Google Sheets Live Sync</b> di atas.</p>
         <div class="field"><label>CSV Buku Induk</label><input type="text" class="mono" id="shBI" value="${esc(DB.cfg.sheetBI||'')}" placeholder="https://docs.google.com/.../pub?...output=csv" style="font-size:11px"></div>
         <div class="field"><label>CSV Pengujian (opsional)</label><input type="text" class="mono" id="shUJI" value="${esc(DB.cfg.sheetUJI||'')}" placeholder="...output=csv" style="font-size:11px"></div>
         <div class="field"><label>CSV Log Penyimpanan (opsional)</label><input type="text" class="mono" id="shLOG" value="${esc(DB.cfg.sheetLOG||'')}" placeholder="...output=csv" style="font-size:11px"></div>
@@ -1165,7 +1224,7 @@ function doPrint(codes, mode, copies, footer){
     jobs.forEach(job=> makeQR(document.getElementById('lq-'+job.key), qrText(job.sample), 240, (typeof QRCode!=='undefined'?QRCode.CorrectLevel.L:null)));
   } else {
     area.className='sheet';
-    area.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;margin-bottom:6mm;color:#333">Label Sampel — Lab Teknik Otomotif POLIBAN · dicetak ${new Date().toLocaleString('id-ID')}</div><div class="lbl-grid">${jobs.map(labelHTML_A4).join('')}</div>`;
+    area.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;margin-bottom:6mm;color:#333">Label Sampel — ${esc(DB.cfg.labName||DEFAULT_LAB_NAME)} · dicetak ${new Date().toLocaleString('id-ID')}</div><div class="lbl-grid">${jobs.map(labelHTML_A4).join('')}</div>`;
     jobs.forEach(job=> makeQR(document.getElementById('lq-'+job.key), qrText(job.sample), 78));
   }
   document.body.classList.add('printing');
@@ -1485,13 +1544,47 @@ function seed(){
   save('S'); save('T'); save('M');
   toast('Contoh data tengkawang dimuat'); VIEW='dash'; render();
 }
-function resetAll(){
-  if(!confirm('Hapus SEMUA data sampel, pengujian, dan log? Tindakan ini tidak dapat dibatalkan.')) return;
+async function resetAll(){
+  if(!confirm('Hapus SEMUA data DAN kosongkan Google Sheet & GitHub yang terhubung?\n\nSinkron otomatis sedang aktif, jadi isi Google Sheet/GitHub akan ikut dikosongkan. Tindakan ini tidak dapat dibatalkan.')) return;
   const keepCfg = cfgDefaults(DB.cfg||{origin:'LHI'});
   delete keepCfg.lastGitHubError;
   DB={samples:[],tests:[],movements:[],cfg:keepCfg};
-  save('S'); save('T'); save('M'); save('CFG');
-  toast('Semua data direset'); VIEW='dash'; render();
+  await save('S');
+  await save('T');
+  await save('M');
+  await save('CFG');
+  closeModal(); toast('Semua data direset (lokal + cloud)'); VIEW='dash'; render();
+}
+async function resetLocalOnly(){
+  if(!confirm('Reset data di perangkat ini SAJA?\n\nGoogle Sheet & GitHub TIDAK akan diubah. (Perubahan berikutnya yang Anda simpan tetap akan tersinkron seperti biasa.)')) return;
+  const keepCfg = cfgDefaults(DB.cfg||{origin:'LHI'});
+  delete keepCfg.lastGitHubError;
+  DB={samples:[],tests:[],movements:[],cfg:keepCfg};
+  await save('S',{skipRemote:true});
+  await save('T',{skipRemote:true});
+  await save('M',{skipRemote:true});
+  await save('CFG',{skipRemote:true});
+  closeModal(); toast('Data lokal direset · Google Sheet & GitHub tetap aman'); VIEW='dash'; render();
+}
+function openResetModal(){
+  openModal(`
+    <div class="modal-h"><h3>Reset Data — Commissioning</h3><button class="x" onclick="App.closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="modal-b">
+      <div class="callout" style="border-color:#e0b3a6;background:#f6e2dc;font-size:12.5px"><b>Perhatian.</b> Reset menghapus <b>semua sampel, pengujian, dan log</b> di aplikasi. Sinkron otomatis ke Google Sheets &amp; GitHub sedang <b>aktif</b>.</div>
+      <p style="font-size:13px;margin:14px 0 6px"><b>1. Unduh cadangan dulu</b> (disarankan):</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm ghost" onclick="App.exportCSV('samples')">⬇ Buku Induk</button>
+        <button class="btn sm ghost" onclick="App.exportCSV('tests')">⬇ Pengujian</button>
+        <button class="btn sm ghost" onclick="App.exportCSV('movements')">⬇ Log</button>
+      </div>
+      <p style="font-size:13px;margin:16px 0 6px"><b>2. Pilih cakupan reset:</b></p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn" onclick="App.resetLocalOnly()" style="display:block;text-align:left;line-height:1.4">🧹 Reset perangkat ini saja<br><span class="micro">Membersihkan tampilan lokal. Google Sheet &amp; GitHub tetap utuh.</span></button>
+        <button class="btn danger" onclick="App.resetAll()" style="display:block;text-align:left;line-height:1.4">🗑 Reset total termasuk cloud<br><span class="micro">Mengosongkan juga Google Sheet &amp; GitHub — untuk membersihkan data uji commissioning.</span></button>
+      </div>
+    </div>
+    <div class="modal-f"><button class="btn ghost" onclick="App.closeModal()">Batal</button></div>
+  `);
 }
 
 /* ============================================================
@@ -1608,15 +1701,38 @@ function captureGitHubConfigFromForm(){
   return true;
 }
 function gitSourceSummary(){
-  if(!hasGitHubSource()) return 'Belum dikonfigurasi.';
+  if(!hasGitHubSource()) return 'Nonaktif (opsional). App tetap bisa pakai data lokal + Google Sheets.';
   return `${githubOwner()}/${githubRepo()} @ ${githubBranch()} / ${githubPath()}`;
 }
 function gitStatusText(){
+  if(!hasGitHubSource()) return 'GitHub nonaktif.';
   const parts = [];
   if(DB.cfg.lastGitHubPull) parts.push(`tarik ${fmtDT(DB.cfg.lastGitHubPull)}`);
   if(DB.cfg.lastGitHubPush) parts.push(`kirim ${fmtDT(DB.cfg.lastGitHubPush)}`);
   if(!parts.length) return 'Belum pernah sinkron.';
   return parts.join(' · ');
+}
+function clearGitHubRuntimeState(){
+  GitHubSync.busy = false;
+  GitHubSync.pending = false;
+  clearTimeout(GitHubSync.timer);
+  GitHubSync.timer = null;
+  GitHubSync.lastError = '';
+  GitHubSync.lastErrorAt = 0;
+}
+function clearGitHubConfigState(){
+  DB.cfg.githubOwner = '';
+  DB.cfg.githubRepo = '';
+  DB.cfg.githubBranch = DEFAULT_GITHUB_BRANCH;
+  DB.cfg.githubPath = DEFAULT_GITHUB_PATH;
+  DB.cfg.githubToken = '';
+  DB.cfg.githubAutoPull = false;
+  DB.cfg.githubAutoSync = false;
+  delete DB.cfg.lastGitHubPull;
+  delete DB.cfg.lastGitHubPush;
+  delete DB.cfg.lastGitHubSha;
+  delete DB.cfg.lastGitHubError;
+  clearGitHubRuntimeState();
 }
 function reportGitHubError(message, manual){
   const text = String(message||'Sinkron GitHub gagal');
@@ -1649,6 +1765,53 @@ async function saveGitHubConfig(){
   await save('CFG',{skipRemote:true});
   toast('Konfigurasi GitHub disimpan di perangkat ini');
   if(VIEW==='guide') render();
+}
+async function openSyncHub(){
+  if(hasGitHubSource()) return pullFromGitHub();
+  nav('guide');
+  return false;
+}
+async function disableGitHubConfig(){
+  clearGitHubConfigState();
+  DB.cfg = cfgDefaults(DB.cfg);
+  await save('CFG',{skipRemote:true});
+  toast('Mode tanpa GitHub aktif. App pakai data lokal + Google Sheets.');
+  render();
+}
+async function testGitHubConnection(){
+  if(captureGitHubConfigFromForm()) await save('CFG',{skipRemote:true});
+  if(!hasGitHubSource()){
+    toast('Isi owner, repo, dan path dulu. Kalau tidak perlu GitHub, klik "Pakai tanpa GitHub".','err');
+    return false;
+  }
+  try{
+    const res = await fetch(githubReadUrl(), {headers: githubHeaders(), cache:'no-store'});
+    if(res.status===404){
+      delete DB.cfg.lastGitHubError;
+      await save('CFG',{skipRemote:true});
+      toast('Repo tersambung. File JSON belum ada, klik "Kirim ke GitHub" untuk membuatnya.');
+      if(VIEW==='guide') render();
+      return true;
+    }
+    if(res.status===401 || res.status===403){
+      throw new Error(hasGitHubWrite()
+        ? 'Token GitHub ditolak atau izin repo belum cukup. Pastikan Contents: Read and write aktif.'
+        : 'Repo privat atau akses baca ditolak. Isi token GitHub bila repo tidak publik.');
+    }
+    if(!res.ok){
+      const txt = await res.text();
+      throw new Error(`Gagal menguji koneksi GitHub (HTTP ${res.status})${txt ? ': '+txt.slice(0,120) : ''}`);
+    }
+    const meta = await res.json();
+    delete DB.cfg.lastGitHubError;
+    await save('CFG',{skipRemote:true});
+    toast(`Koneksi GitHub OK: ${githubOwner()}/${githubRepo()}${meta && meta.sha ? ' · '+String(meta.sha).slice(0,7) : ''}`);
+    if(VIEW==='guide') render();
+    return true;
+  }catch(e){
+    reportGitHubError(e.message||e, true);
+    return false;
+  }
 }
 async function pullFromGitHub({manual=true, quiet=false, renderAfter=true}={}){
   if(captureGitHubConfigFromForm()) await save('CFG',{skipRemote:true});
@@ -1750,6 +1913,130 @@ async function pushToGitHub({manual=true, reason='manual'}={}){
 /* ============================================================
    MIGRASI CSV / GOOGLE SHEETS  →  memuat data lama ke aplikasi
    ============================================================ */
+/* ============================================================
+   GOOGLE SHEETS LIVE SYNC (Apps Script Web App)
+   ============================================================ */
+function sheetWriteUrl(){ return gitTrim(DB.cfg.sheetWriteUrl); }
+function sheetWriteToken(){ return gitTrim(DB.cfg.sheetWriteToken); }
+function hasSheetWriteTarget(){ return !!sheetWriteUrl(); }
+function sheetTargetSummary(){
+  if(!hasSheetWriteTarget()) return 'Belum dikonfigurasi.';
+  const raw = sheetWriteUrl().replace(/^https?:\/\//,'');
+  return raw.length>78 ? raw.slice(0,77)+'…' : raw;
+}
+function sheetStatusText(){
+  const parts = [];
+  if(DB.cfg.lastSheetPush) parts.push(`kirim ${fmtDT(DB.cfg.lastSheetPush)}`);
+  if(DB.cfg.lastSheetSummary) parts.push(DB.cfg.lastSheetSummary);
+  if(!parts.length) return 'Belum pernah sinkron.';
+  return parts.join(' · ');
+}
+function captureSheetSyncConfigFromForm(){
+  if(!$('#gsWriteUrl')) return false;
+  DB.cfg.sheetWriteUrl = gitTrim($('#gsWriteUrl').value) || DEFAULT_SHEET_WRITE_URL;
+  DB.cfg.sheetWriteToken = gitTrim($('#gsWriteToken').value);
+  DB.cfg.sheetWriteAutoSync = !!($('#gsWriteAuto') && $('#gsWriteAuto').checked);
+  return true;
+}
+async function saveSheetSyncConfig(){
+  captureSheetSyncConfigFromForm();
+  DB.cfg = cfgDefaults(DB.cfg);
+  await save('CFG',{skipRemote:true});
+  toast('Konfigurasi Google Sheets live sync disimpan');
+  if(VIEW==='guide') render();
+}
+function serializeSheetSyncDb(reason){
+  const payload = {
+    schema: SHEET_SYNC_SCHEMA,
+    version: SHEET_SYNC_VERSION,
+    app: 'SITRAS',
+    reason: reason || 'manual',
+    updatedAt: new Date().toISOString(),
+    sharedConfig: gitSharedConfig(),
+    samples: DB.samples,
+    tests: DB.tests,
+    movements: DB.movements,
+  };
+  const token = sheetWriteToken();
+  if(token) payload.token = token;
+  return payload;
+}
+function reportSheetError(message, manual){
+  const text = String(message||'Sinkron Google Sheets gagal');
+  DB.cfg.lastSheetError = text;
+  if(manual){
+    toast(text,'err');
+  }else{
+    const now = Date.now();
+    if(SheetSync.lastError!==text || (now-SheetSync.lastErrorAt)>15000){
+      SheetSync.lastError = text;
+      SheetSync.lastErrorAt = now;
+      toast(text,'err');
+    }
+  }
+  if(VIEW==='guide') render();
+}
+function scheduleSheetPush(reason){
+  if(!hasSheetWriteTarget() || DB.cfg.sheetWriteAutoSync===false) return;
+  SheetSync.pending = true;
+  if(SheetSync.busy) return;
+  clearTimeout(SheetSync.timer);
+  SheetSync.timer = setTimeout(()=>{
+    SheetSync.timer = null;
+    pushToGoogleSheets({manual:false, reason:reason||'autosave'});
+  }, GSHEET_SYNC_DELAY_MS);
+}
+async function pushToGoogleSheets({manual=true, reason='manual'}={}){
+  if(captureSheetSyncConfigFromForm()) await save('CFG',{skipRemote:true});
+  if(!hasSheetWriteTarget()){
+    if(manual) toast('URL Web App Google Sheets belum diisi','err');
+    return false;
+  }
+  if(SheetSync.busy){
+    SheetSync.pending = true;
+    return false;
+  }
+  SheetSync.busy = true;
+  SheetSync.pending = false;
+  clearTimeout(SheetSync.timer);
+  SheetSync.timer = null;
+  try{
+    const res = await fetch(sheetWriteUrl(), {
+      method:'POST',
+      headers:{
+        'Accept':'application/json, text/plain, */*',
+        'Content-Type':'text/plain;charset=utf-8',
+      },
+      body:JSON.stringify(serializeSheetSyncDb(reason)),
+    });
+    const txt = await res.text();
+    let out = null;
+    try{ out = txt ? JSON.parse(txt) : null; }catch(e){ out = null; }
+    if(!res.ok){
+      throw new Error(`Gagal mengirim data ke Google Sheets (HTTP ${res.status})${txt ? ': '+txt.slice(0,160) : ''}`);
+    }
+    if(out && out.ok===false){
+      throw new Error(out.message || 'Apps Script menolak sinkron');
+    }
+    DB.cfg.lastSheetPush = new Date().toISOString();
+    DB.cfg.lastSheetSummary = out && out.summary ? String(out.summary) : `${DB.samples.length} sampel · ${DB.tests.length} uji · ${DB.movements.length} log`;
+    delete DB.cfg.lastSheetError;
+    await save('CFG',{skipRemote:true});
+    if(manual) toast(out && out.message ? out.message : 'Data berhasil dikirim ke Google Sheets');
+    if(VIEW==='guide') render();
+    return true;
+  }catch(e){
+    reportSheetError(e.message||e, manual);
+    return false;
+  }finally{
+    SheetSync.busy = false;
+    if(SheetSync.pending){
+      SheetSync.pending = false;
+      scheduleSheetPush('queued');
+    }
+  }
+}
+
 function _csvParse(text){
   text=String(text).replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   const rows=[]; let row=[],f='',i=0,q=false;
@@ -1798,18 +2085,50 @@ async function _fetchCSV(url){
   return _csvObjects(await r.text());
 }
 async function _updateFromSheets(){
-  const bi=(DB.cfg.sheetBI||DEFAULT_SHEET_BI||'').trim();
-  const uji=(DB.cfg.sheetUJI||'').trim(), log=(DB.cfg.sheetLOG||'').trim();
-  if(!bi){ toast('URL CSV Buku Induk belum diisi','err'); return; }
+  const bi=gitTrim(DB.cfg.sheetBI);
+  const uji=gitTrim(DB.cfg.sheetUJI);
+  const log=gitTrim(DB.cfg.sheetLOG);
+  if(!bi && !uji && !log){ toast('Isi minimal satu URL CSV yang ingin ditarik','err'); return; }
   if(location.protocol==='file:'){ toast('Tombol Update butuh aplikasi dibuka via http (host/server). Untuk berkas lokal, pakai "Impor berkas CSV".','err'); return; }
   toast('Mengambil data dari Google Sheets…');
   try{
-    const s=await _fetchCSV(bi); DB.samples=s.map(_mapSample).filter(x=>x.id);
-    if(uji){ try{ const t=await _fetchCSV(uji); DB.tests=t.map(_mapTest).filter(x=>x.sampleCode); }catch(e){} }
-    if(log){ try{ const l=await _fetchCSV(log); DB.movements=l.map(_mapMove).filter(x=>x.sampleCode); }catch(e){} }
+    const next = {samples:[], tests:[], movements:[]};
+    const notes = [];
+    if(bi){
+      const s=await _fetchCSV(bi);
+      next.samples=s.map(_mapSample).filter(x=>x.id);
+    }
+    if(uji){
+      try{
+        const t=await _fetchCSV(uji);
+        next.tests=t.map(_mapTest).filter(x=>x.sampleCode);
+      }catch(e){
+        next.tests=[];
+        notes.push('CSV pengujian gagal dibaca, data uji lokal dikosongkan');
+      }
+    }
+    if(log){
+      try{
+        const l=await _fetchCSV(log);
+        next.movements=l.map(_mapMove).filter(x=>x.sampleCode);
+      }catch(e){
+        next.movements=[];
+        notes.push('CSV log gagal dibaca, data log lokal dikosongkan');
+      }
+    }
+    if(bi){
+      const sampleIds = new Set(next.samples.map(s=>s.id));
+      next.tests = next.tests.filter(t=>sampleIds.has(t.sampleCode));
+      next.movements = next.movements.filter(m=>sampleIds.has(m.sampleCode));
+    }
+    DB.samples=next.samples;
+    DB.tests=next.tests;
+    DB.movements=next.movements;
     await save('S'); await save('T'); await save('M');
     DB.cfg.lastSync=new Date().toISOString(); await save('CFG'); render();
-    toast(`Tersinkron: ${DB.samples.length} sampel`+(uji?`, ${DB.tests.length} uji`:'')+(log?`, ${DB.movements.length} pergerakan`:''));
+    let msg = `Tersinkron: ${DB.samples.length} sampel`+(uji?`, ${DB.tests.length} uji`:'')+(log?`, ${DB.movements.length} pergerakan`:'');
+    if(notes.length) msg += ` · ${notes.join(' · ')}`;
+    toast(msg);
   }catch(e){ toast('Gagal memuat: '+(e.message||e)+'. Cek publikasi CSV / koneksi.','err'); }
 }
 function _importFile(kind,el){
@@ -1825,9 +2144,10 @@ function _importFile(kind,el){
   rd.readAsText(f); el.value='';
 }
 async function _saveSheets(){
-  if($('#shBI'))  DB.cfg.sheetBI =$('#shBI').value.trim();
-  if($('#shUJI')) DB.cfg.sheetUJI=$('#shUJI').value.trim();
-  if($('#shLOG')) DB.cfg.sheetLOG=$('#shLOG').value.trim();
+  if($('#shBI'))  DB.cfg.sheetBI = gitTrim($('#shBI').value);
+  if($('#shUJI')) DB.cfg.sheetUJI = gitTrim($('#shUJI').value);
+  if($('#shLOG')) DB.cfg.sheetLOG = gitTrim($('#shLOG').value);
+  DB.cfg.csvSourceMigrated = true;
   await save('CFG'); toast('Sumber Google Sheets disimpan');
 }
 function _pickAll(v){ document.querySelectorAll('.pick').forEach(c=>c.checked=v); }
@@ -1853,7 +2173,10 @@ async function _printSelected(mode){
    ============================================================ */
 const App = {
   nav, detail, closeModal, exportCSV, seed, resetAll,
+  resetLocalOnly, openResetModal, saveBranding,
   openRegister:()=>nav('reg'),
+  openSyncGuide:()=>nav('guide'),
+  openSyncHub,
   saveSample, editSample, delSample, _saveEdit, _confirmDel,
   openTest, _saveTest, _delTest, _catChange,
   openMove, _saveMove, _moveAction,
@@ -1861,24 +2184,28 @@ const App = {
   printPicker, printOne, _pickAll, _printSelected,
   _refreshCode, _toggleManual,
   _previewQrUrl, _saveQrUrl, _clearQrUrl,
-  saveGitHubConfig, pullFromGitHub, pushToGitHub,
+  saveGitHubConfig, disableGitHubConfig, testGitHubConnection, pullFromGitHub, pushToGitHub,
+  saveSheetSyncConfig, pushToGoogleSheets,
   updateFromSheets:_updateFromSheets, saveSheets:_saveSheets, importFile:_importFile,
 };
 window.App = App;
-const _vg=viewGuide,_save0=save,_cfg0=cfgDefaults,_sheet={t:0,b:0,p:0,e:0};
-  cfgDefaults=function(c){c=_cfg0(c||{});if(!('sheetWriteUrl' in c))c.sheetWriteUrl='';if(!('sheetWriteToken' in c))c.sheetWriteToken='';if(!('sheetWriteAutoSync' in c))c.sheetWriteAutoSync=true;return c;};
-  function _sUrl(){return gitTrim(DB.cfg.sheetWriteUrl||(((DB.cfg.sheetBI||'').includes('script.google.com/'))?DB.cfg.sheetBI:''));}
-  function _sCap(){if($('#gsWriteUrl'))DB.cfg.sheetWriteUrl=gitTrim($('#gsWriteUrl').value);if($('#gsWriteToken'))DB.cfg.sheetWriteToken=gitTrim($('#gsWriteToken').value);if($('#gsWriteAuto'))DB.cfg.sheetWriteAutoSync=!!$('#gsWriteAuto').checked;DB.cfg=cfgDefaults(DB.cfg);}
-  function _sData(r){const o={schema:'sitras-sheet-sync',version:1,app:'SITRAS',reason:r||'manual',updatedAt:new Date().toISOString(),samples:DB.samples,tests:DB.tests,movements:DB.movements,sharedConfig:{origin:DB.cfg.origin||'',qrUrl:DB.cfg.qrUrl||''}};const t=gitTrim(DB.cfg.sheetWriteToken);if(t)o.token=t;return o;}
-  async function saveSheetSyncConfig(){_sCap();await _save0('CFG',{skipRemote:true});toast('Konfigurasi Google Sheets disimpan');if(VIEW==='guide')render();}
-  async function pushToGoogleSheets(m=1,r='manual'){_sCap();const u=_sUrl();if(!u){if(m)toast('URL Web App Google Sheets belum diisi','err');return 0;}if(_sheet.b){_sheet.p=1;return 0;}_sheet.b=1;try{const x=await fetch(u,{method:'POST',headers:{'Accept':'application/json, text/plain, */*','Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(_sData(r))}),tx=await x.text();let j=null;try{j=tx?JSON.parse(tx):null}catch(e){}if(!x.ok)throw new Error('HTTP '+x.status+(tx?': '+tx.slice(0,140):''));if(j&&j.ok===false)throw new Error(j.message||'Sinkron Google Sheets ditolak');DB.cfg.lastSheetPush=new Date().toISOString();DB.cfg.lastSheetSummary=j&&j.summary?String(j.summary):`${DB.samples.length} sampel | ${DB.tests.length} uji | ${DB.movements.length} log`;delete DB.cfg.lastSheetError;await _save0('CFG',{skipRemote:true});if(m)toast(j&&j.message?j.message:'Data berhasil dikirim ke Google Sheets');if(VIEW==='guide')render();return 1}catch(e){DB.cfg.lastSheetError=String(e&&e.message||e);await _save0('CFG',{skipRemote:true});if(m||Date.now()-_sheet.e>15000){_sheet.e=Date.now();toast('Sinkron Google Sheets gagal: '+DB.cfg.lastSheetError,'err');}if(VIEW==='guide')render();return 0}finally{_sheet.b=0;if(_sheet.p){_sheet.p=0;_sSched('queued');}}}
-  function _sSched(r){if(!_sUrl()||DB.cfg.sheetWriteAutoSync===false)return;clearTimeout(_sheet.t);_sheet.t=setTimeout(()=>pushToGoogleSheets(0,r||'autosave'),1200);}
-  save=async function(p,o={}){const z=await _save0(p,o);if(!(o&&o.localOnly))_sSched(p);return z;};
-  viewGuide=function(){const st=DB.cfg.lastSheetPush?fmtDT(DB.cfg.lastSheetPush):'Belum pernah sinkron.';const er=DB.cfg.lastSheetError?`<div class="warn" style="margin-top:10px;font-size:12px">${esc(DB.cfg.lastSheetError)}</div>`:'';const c=`<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Google Sheets Live Sync</h3><span class="micro">Apps Script Web App</span></div><div class="card-b"><p style="font-size:13px;margin-top:0">CSV Google Sheets hanya bisa dibaca. Untuk pencatatan otomatis dari web, isi URL Web App Apps Script di sini.</p><div class="field"><label>URL Web App Google Sheets</label><input type="text" class="mono" id="gsWriteUrl" value="${esc(DB.cfg.sheetWriteUrl||'')}" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:11px"></div><div class="field"><label>Token sinkron (opsional)</label><input type="password" class="mono" id="gsWriteToken" value="${esc(DB.cfg.sheetWriteToken||'')}" placeholder="samakan dengan WRITE_TOKEN" style="font-size:11px"></div><div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;margin-bottom:10px"><label><input type="checkbox" id="gsWriteAuto" ${DB.cfg.sheetWriteAutoSync!==false?'checked':''}> Kirim perubahan otomatis ke Google Sheets</label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><button class="btn ghost" onclick="App.saveSheetSyncConfig()">Simpan konfigurasi</button><button class="btn amber" onclick="App.pushToGoogleSheets()">Kirim ke Google Sheets</button></div><div class="micro" style="margin-top:8px">Status: ${esc(st)}${DB.cfg.lastSheetSummary?' | '+esc(DB.cfg.lastSheetSummary):''}</div>${er}</div></div>`;const m='<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Migrasi dari CSV / Google Sheets</h3><span class="micro">opsional</span></div><div class="card-b">';const g=_vg();return g.includes('Google Sheets Live Sync')?g:g.includes(m)?g.replace(m,c+m):c+g;};
-  App.saveSheetSyncConfig=saveSheetSyncConfig;App.pushToGoogleSheets=()=>pushToGoogleSheets(1,'manual');DB.cfg=cfgDefaults(DB.cfg);if(VIEW==='guide')render();
-  
+
+function applyBranding(){
+  const n=(DB.cfg&&DB.cfg.labName)||DEFAULT_LAB_NAME, s=(DB.cfg&&DB.cfg.labSub)||DEFAULT_LAB_SUB;
+  try{ document.title=n+' — Ketertelusuran Sampel (SITRAS)'; }catch(e){}
+  const h=document.getElementById('brandName'); if(h) h.textContent=n;
+  const sub=document.getElementById('brandSub'); if(sub) sub.textContent=s;
+  const lg=document.getElementById('brandLogo'); if(lg) lg.setAttribute('title',n);
+}
+async function saveBranding(){
+  const n=$('#brandNameInput')?$('#brandNameInput').value.trim():'';
+  const s=$('#brandSubInput')?$('#brandSubInput').value.trim():'';
+  DB.cfg.labName=n||DEFAULT_LAB_NAME; DB.cfg.labSub=s||DEFAULT_LAB_SUB;
+  await save('CFG',{skipRemote:true}); applyBranding(); toast('Identitas laboratorium disimpan');
+}
 (async function init(){
   await loadDB();
+  applyBranding();
   render();
 })();
 </script>

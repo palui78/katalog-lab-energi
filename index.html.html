@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Katalog Sampel — Lab Energi Terbarukan POLIBAN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f3efe6; --paper2:#ece8df; --card:#fffdf8; --ink:#1b201b; --ink2:#3a3f39;
+  --muted:#7c8175; --line:#d9d2c2; --moss:#2e5d3e; --moss-l:#dcebdf; --amber:#8a5a1f; --amber-l:#f3e6cd;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5;
+  background-image:radial-gradient(var(--line) .5px,transparent .5px);background-size:22px 22px}
+a{color:var(--moss);text-decoration:none} a:hover{text-decoration:underline}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.serif{font-family:"IBM Plex Serif",Georgia,serif}
+.wrap{max-width:900px;margin:0 auto;padding:18px 18px 60px}
+header.top{background:var(--card);border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(0,0,0,.02)}
+.top-in{max-width:900px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.logo{width:42px;height:42px;border-radius:11px;background:linear-gradient(145deg,#356b48,#23492f);
+  display:grid;place-items:center;flex:0 0 auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.logo svg{width:24px;height:24px}
+.brand h1{font-family:"IBM Plex Serif",serif;font-size:18px;margin:0;letter-spacing:-.01em}
+.brand .sub{font-size:11px;color:var(--muted);margin-top:1px}
+.spacer{flex:1}
+.badge{font-size:11px;font-weight:600;color:var(--amber);background:var(--amber-l);
+  border:1px solid #e6cfa0;border-radius:999px;padding:4px 11px;white-space:nowrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;box-shadow:0 1px 3px rgba(40,40,20,.05)}
+.card-h{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card-h h3{margin:0;font-family:"IBM Plex Serif",serif;font-size:16px}
+.card-h .micro{font-size:11px;color:var(--muted);margin-left:auto}
+.card-b{padding:16px 18px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 11px;border-radius:999px}
+.pill .dot{width:7px;height:7px;border-radius:50%}
+.codebig{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:22px;letter-spacing:-.01em;word-break:break-all}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2px 22px}
+.kv{padding:9px 0;border-bottom:1px dashed var(--line)}
+.kv .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kv .v{font-size:14.5px;margin-top:2px}
+.input{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;background:#fff;
+  font-size:14px;font-family:inherit}
+.input:focus{outline:none;border-color:var(--moss);box-shadow:0 0 0 3px var(--moss-l)}
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);
+  border-radius:11px;padding:10px 15px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:var(--moss)}
+.btn.moss{background:var(--moss);border-color:var(--moss);color:#fff}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{background:var(--moss);color:#fff;text-align:left;padding:9px 11px;font-weight:600;font-size:12.5px}
+.tbl td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl tr:nth-child(even) td{background:#faf7f0}
+.list-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.list-row:hover{background:#faf7f0}
+.list-row:last-child{border-bottom:none}
+.list-row .lc{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13.5px;flex:0 0 auto}
+.list-row .la{color:var(--ink2);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.note{background:var(--moss-l);border:1px solid #bcd6c4;border-radius:11px;padding:12px 14px;font-size:13px}
+.warn{background:var(--amber-l);border:1px solid #e6cfa0;border-radius:11px;padding:12px 14px;font-size:13px}
+.err{background:#f6e2dc;border:1px solid #e0b3a6;border-radius:11px;padding:12px 14px;font-size:13px}
+.steps{margin:8px 0 0;padding-left:20px} .steps li{margin:6px 0;font-size:13px}
+.tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--paper2);
+  border:1px solid var(--line);border-radius:7px;padding:2px 7px}
+footer.ft{max-width:900px;margin:18px auto 0;padding:0 18px;color:var(--muted);font-size:11.5px;text-align:center}
+.center{text-align:center} .mt{margin-top:14px} .mb{margin-bottom:14px}
+.spin{display:inline-block;width:18px;height:18px;border:2.5px solid var(--moss-l);border-top-color:var(--moss);
+  border-radius:50%;animation:sp .8s linear infinite;vertical-align:-4px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#eafff0" stroke-width="1.8"><path d="M9 3h6M10 3v6.5L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-8.5V3"/></svg></div>
+    <div class="brand">
+      <h1 id="labName">Lab Teknik Otomotif POLIBAN</h1>
+      <div class="sub" id="labSub">Politeknik Negeri Banjarmasin · Katalog Sampel (read-only)</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Hanya-baca</div>
+  </div>
+</header>
+<div class="wrap"><div id="app"><p><span class="spin"></span>Memuat…</p></div></div>
+<footer class="ft" id="ft"></footer>
+
+<script>
+/* =====================================================================
+   KONFIGURASI  —  isi lokasi database JSON di GitHub.
+   File ini membaca database pusat yang sama dengan aplikasi SITRAS utama.
+   Repo sebaiknya PUBLIC bila katalog ini ingin diakses tanpa login.
+   ===================================================================== */
+const CONFIG = {
+  labName: "Lab Teknik Otomotif POLIBAN",
+  labSub:  "Politeknik Negeri Banjarmasin · Katalog Sampel (read-only)",
+  githubOwner: "",       // mis. palui78
+  githubRepo:  "",       // mis. sitras-db
+  githubBranch:"main",
+  githubPath:  "data/sitras-db.json",
+  databaseURL: "",       // opsional: isi langsung URL raw JSON bila mau override
+};
+
+const MAT={SST:"Shorea stenoptera (tengkawang)",TKW:"Tengkawang"};
+const TIPE={RAW:"Biomassa mentah",SS:"Subsampel preparasi",BO:"Bio-oil",BC:"Biochar",AQ:"Fasa air",NCG:"Gas non-kondensabel",OTH:"Lainnya"};
+const STATUS={'Terdaftar':{c:'#7c8175',b:'#ece8df'},'Disimpan':{c:'#2e5d3e',b:'#dcebdf'},'Diuji':{c:'#8a5a1f',b:'#f3e6cd'},'Habis':{c:'#a8432e',b:'#f1ddd6'},'Diarsipkan':{c:'#3a5170',b:'#dde3ee'},'Dibuang':{c:'#5a5a5a',b:'#e4e2dc'}};
+const TSTATUS={'Direncanakan':{c:'#7c8175',b:'#ece8df'},'Berjalan':{c:'#8a5a1f',b:'#f3e6cd'},'Selesai':{c:'#2e5d3e',b:'#dcebdf'},'Dibatalkan':{c:'#a8432e',b:'#f1ddd6'}};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const app=$('#app');
+
+/* ---------- parameter (mendukung ?kode=, #kode, /s/kode, dan ?demo=1) ---------- */
+function params(){
+  const f=window.__FORCE||{};
+  const u=new URL(location.href);
+  const demo = f.demo || u.searchParams.get('demo')==='1';
+  let code = f.code || u.searchParams.get('kode') || u.searchParams.get('s') || '';
+  if(!code && location.hash.length>1) code=decodeURIComponent(location.hash.slice(1));
+  if(!code){ const m=location.pathname.match(/\/s\/([^\/?#]+)/); if(m) code=decodeURIComponent(m[1]); }
+  return {demo, code:(code||'').trim()};
+}
+function linkFor(code){
+  const u=new URL(location.href); u.hash=''; u.searchParams.delete('s');
+  u.searchParams.set('kode',code); return u.pathname+u.search;
+}
+
+/* ---------- CSV parser (tangani tanda kutip, koma, newline dalam sel) ---------- */
+function parseCSV(text){
+  text=String(text).replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const rows=[]; let row=[],field='',i=0,q=false;
+  while(i<text.length){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else q=false; } else field+=c; }
+    else { if(c==='"') q=true; else if(c===','){row.push(field);field='';}
+           else if(c==='\n'){row.push(field);rows.push(row);row=[];field='';} else field+=c; }
+    i++;
+  }
+  if(field!==''||row.length){row.push(field);rows.push(row);}
+  return rows;
+}
+function csvObjects(text){
+  const rows=parseCSV(text).filter(r=>r.some(c=>String(c).trim()!==''));
+  if(!rows.length) return [];
+  const head=rows[0].map(h=>String(h).trim());
+  return rows.slice(1).map(r=>{const o={};head.forEach((h,i)=>o[h]=String(r[i]==null?'':r[i]).trim());return o;});
+}
+function pick(o,names){
+  const keys=Object.keys(o);
+  for(const n of names){const k=keys.find(k=>k.trim().toLowerCase()===n);if(k!==undefined)return o[k];}
+  for(const n of names){const k=keys.find(k=>k.trim().toLowerCase().includes(n));if(k)return o[k];}
+  return '';
+}
+function gitTrim(v){ return String(v==null?'':v).trim(); }
+function hasGitHubSource(){
+  return !!(gitTrim(CONFIG.databaseURL) || (gitTrim(CONFIG.githubOwner) && gitTrim(CONFIG.githubRepo) && gitTrim(CONFIG.githubPath)));
+}
+function githubRawUrl(){
+  if(gitTrim(CONFIG.databaseURL)) return gitTrim(CONFIG.databaseURL);
+  return `https://raw.githubusercontent.com/${encodeURIComponent(gitTrim(CONFIG.githubOwner))}/${encodeURIComponent(gitTrim(CONFIG.githubRepo))}/${encodeURIComponent(gitTrim(CONFIG.githubBranch)||'main')}/${gitTrim(CONFIG.githubPath).split('/').map(encodeURIComponent).join('/')}`;
+}
+async function fetchGitHubDb(){
+  const url = githubRawUrl() + (githubRawUrl().includes('?') ? '&' : '?') + '_=' + Date.now();
+  const r = await fetch(url,{cache:'no-store'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const payload = await r.json();
+  return {
+    induk: Array.isArray(payload.samples) ? payload.samples : [],
+    uji: Array.isArray(payload.tests) ? payload.tests : [],
+    log: Array.isArray(payload.movements) ? payload.movements : [],
+  };
+}
+async function fetchCSV(url){
+  const u=url+(url.indexOf('?')>=0?'&':'?')+'_='+Date.now();
+  const r=await fetch(u,{cache:'no-store'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return csvObjects(await r.text());
+}
+
+/* ---------- field mappers ---------- */
+const F={
+  kode:['kode sampel','kode','run id','id'], alias:['alias / kode lokal','alias','kode lokal'],
+  material:['material'], tipe:['tipe','type'], asal:['asal','origin'],
+  regdate:['tgl registrasi','tanggal registrasi','tanggal','regdate','regDate'], sumber:['sumber / asal lokasi','sumber','asal lokasi','source'],
+  induk:['induk (kode)','induk','kode induk','parent'], mAwal:['massa awal','massInitial'], mKini:['massa saat ini','massa kini','massCurrent'],
+  satuan:['satuan','unit'], kadar:['kadar air (%)','kadar air','moisture'], kondS:['kondisi sampel','cond'], cust:['custodian'],
+  lokasi:['lokasi simpan','lokasi','loc'], kondSimpan:['kondisi simpan','storecond'], status:['status'], catatan:['catatan','keterangan','notes'],
+};
+const FT={kode:['kode sampel','kode','sampleCode'],kategori:['kategori uji','kategori','category'],metode:['metode','method'],lab:['lab penguji','lab'],
+  analis:['analis','analyst'],mulai:['tgl mulai','dateStart'],selesai:['tgl selesai','dateEnd'],cert:['no. laporan/sertifikat','no. laporan','no laporan','sertifikat','certNo'],
+  status:['status'],hasil:['hasil ringkas','hasil','result'],berkas:['berkas / link','berkas','file','fileRef']};
+const FL={waktu:['tanggal-waktu','tanggal','waktu','datetime'],kode:['kode sampel','kode','sampleCode'],aksi:['aksi','action'],
+  dari:['dari lokasi','dari','fromLocation'],ke:['ke lokasi','ke','toLocation'],oleh:['oleh','person'],ket:['keterangan','note']};
+
+function pillFor(status,map){const m=map[status]||{c:'#7c8175',b:'#ece8df'};
+  return status?`<span class="pill" style="color:${m.c};background:${m.b}"><span class="dot" style="background:${m.c}"></span>${esc(status)}</span>`:'';}
+function kv(k,v){if(v==null||String(v).trim()===''||v==='—')return '';return `<div class="kv"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`;}
+
+/* ---------- data store ---------- */
+const DATA={induk:[],uji:[],log:[]};
+
+/* ---------- DEMO dataset (tengkawang) ---------- */
+function demoData(){
+  DATA.induk=[
+   {'Kode Sampel':'SST-RAW-LHI-26-001','Alias / Kode Lokal':'TKW lapangan','Material':'SST','Tipe':'RAW','Asal':'LHI','Tgl Registrasi':'2026-02-13','Sumber / Asal Lokasi':'Kec. Lahei, Barito Utara, Kalteng','Induk (Kode)':'','Massa Awal':'5000','Massa Saat Ini':'3900','Satuan':'g','Kadar Air (%)':'','Kondisi Sampel':'Cangkang & ampas tengkawang','Custodian':'M. Natsir','Lokasi Simpan':'Lemari A / Rak 1','Kondisi Simpan':'Suhu ruang','Status':'Disimpan','Catatan':'Sampel mentah hasil survei lapangan ~5 kg.'},
+   {'Kode Sampel':'SST-SS-LHI-26-001','Alias / Kode Lokal':'SS-01 WBI','Material':'SST','Tipe':'SS','Asal':'LHI','Tgl Registrasi':'2026-03-09','Sumber / Asal Lokasi':'Turunan dari SST-RAW-LHI-26-001','Induk (Kode)':'SST-RAW-LHI-26-001','Massa Awal':'500','Massa Saat Ini':'430','Satuan':'g','Kadar Air (%)':'2.91','Kondisi Sampel':'Serbuk kering 1–2 mm','Custodian':'M. Natsir','Lokasi Simpan':'Desikator D-1','Kondisi Simpan':'Desikator','Status':'Disimpan','Catatan':'Subsampel preparasi #1.'},
+   {'Kode Sampel':'SST-SS-LHI-26-002','Alias / Kode Lokal':'SS-02 WBI','Material':'SST','Tipe':'SS','Asal':'LHI','Tgl Registrasi':'2026-03-09','Sumber / Asal Lokasi':'Turunan dari SST-RAW-LHI-26-001','Induk (Kode)':'SST-RAW-LHI-26-001','Massa Awal':'500','Massa Saat Ini':'470','Satuan':'g','Kadar Air (%)':'','Kondisi Sampel':'Serbuk kering 1–2 mm','Custodian':'M. Natsir','Lokasi Simpan':'Desikator D-1','Kondisi Simpan':'Desikator','Status':'Disimpan','Catatan':'Subsampel preparasi #2.'},
+   {'Kode Sampel':'SST-SS-LHI-26-003','Alias / Kode Lokal':'SS-03 WBI','Material':'SST','Tipe':'SS','Asal':'LHI','Tgl Registrasi':'2026-03-09','Sumber / Asal Lokasi':'Turunan dari SST-RAW-LHI-26-001','Induk (Kode)':'SST-RAW-LHI-26-001','Massa Awal':'500','Massa Saat Ini':'470','Satuan':'g','Kadar Air (%)':'','Kondisi Sampel':'Serbuk kering 1–2 mm','Custodian':'M. Natsir','Lokasi Simpan':'Desikator D-1','Kondisi Simpan':'Desikator','Status':'Disimpan','Catatan':'Subsampel preparasi #3.'},
+  ];
+  DATA.uji=[
+   {'Kode Sampel':'SST-SS-LHI-26-001','Kategori Uji':'Proksimat','Metode':'SNI / ASTM','Lab Penguji':'BSPJI Banjarbaru','Tgl Selesai':'2026-04-24','No. Laporan/Sertifikat':'P.1425-AK','Status':'Selesai','Hasil Ringkas':'Kadar air 2,91%; VM 90,90%; FC 5,22%; abu 0,97%; HHV 4630,47 Cal/g; VM/FC 17,41.'},
+   {'Kode Sampel':'SST-SS-LHI-26-001','Kategori Uji':'FTIR-ATR','Metode':'FTIR-ATR','Lab Penguji':'Lab Terpadu ULM','Tgl Selesai':'2026-04-26','No. Laporan/Sertifikat':'LT-FTIR-0426-004','Status':'Selesai','Hasil Ringkas':'Kristalinitas selulosa tertinggi (O–H 3311,18 cm⁻¹).'},
+   {'Kode Sampel':'SST-SS-LHI-26-002','Kategori Uji':'FTIR-ATR','Metode':'FTIR-ATR','Lab Penguji':'Lab Terpadu ULM','Tgl Selesai':'2026-04-26','No. Laporan/Sertifikat':'LT-FTIR-0426-005','Status':'Selesai','Hasil Ringkas':'Serapan terlemah (3384,94 cm⁻¹).'},
+   {'Kode Sampel':'SST-SS-LHI-26-003','Kategori Uji':'FTIR-ATR','Metode':'FTIR-ATR','Lab Penguji':'Lab Terpadu ULM','Tgl Selesai':'2026-04-26','No. Laporan/Sertifikat':'LT-FTIR-0426-006','Status':'Selesai','Hasil Ringkas':'Lignin siringil dominan (1503,96 cm⁻¹).'},
+   {'Kode Sampel':'SST-SS-LHI-26-001','Kategori Uji':'Ultimat (CHNS-O)','Metode':'ASTM D5373','Lab Penguji':'(akan ditentukan)','No. Laporan/Sertifikat':'','Status':'Direncanakan','Hasil Ringkas':'Prioritas sebelum submisi jurnal.'},
+  ];
+  DATA.log=[
+   {'Tanggal-Waktu':'2026-02-13 08:00','Kode Sampel':'SST-RAW-LHI-26-001','Aksi':'Masuk','Dari Lokasi':'','Ke Lokasi':'Lemari A / Rak 1','Oleh':'M. Natsir','Keterangan':'Penyimpanan sampel mentah'},
+   {'Tanggal-Waktu':'2026-04-08 08:00','Kode Sampel':'SST-SS-LHI-26-001','Aksi':'Keluar','Dari Lokasi':'Desikator D-1','Ke Lokasi':'(dikirim BSPJI)','Oleh':'M. Natsir','Keterangan':'Pengiriman uji proksimat'},
+  ];
+}
+
+/* ---------- RENDER: detail ---------- */
+function renderDetail(code){
+  const row=DATA.induk.find(r=>pick(r,F.kode).trim().toUpperCase()===code.toUpperCase());
+  if(!row) return renderNotFound(code);
+  const matc=pick(row,F.material), tipec=pick(row,F.tipe);
+  const matTxt=matc?(MAT[matc]?matc+' — '+MAT[matc]:matc):'';
+  const tipeTxt=tipec?(TIPE[tipec]?tipec+' — '+TIPE[tipec]:tipec):'';
+  const induk=pick(row,F.induk);
+  const mAwal=pick(row,F.mAwal),mKini=pick(row,F.mKini),sat=pick(row,F.satuan);
+  const massa=(mAwal||mKini)?`${esc(mAwal||'?')} → <b>${esc(mKini||'?')}</b> ${esc(sat||'')}`:'';
+  const kadar=pick(row,F.kadar);
+  // turunan (anak)
+  const children=DATA.induk.filter(r=>pick(r,F.induk).trim().toUpperCase()===code.toUpperCase());
+  // pengujian & log terkait
+  const tests=DATA.uji.filter(r=>pick(r,FT.kode).trim().toUpperCase()===code.toUpperCase());
+  const moves=DATA.log.filter(r=>pick(r,FL.kode).trim().toUpperCase()===code.toUpperCase());
+
+  let h=`<div class="mb"><a href="${esc(linkFor(''))}">← Daftar sampel</a></div>`;
+  h+=`<div class="card mb"><div class="card-b">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="codebig">${esc(pick(row,F.kode))}</span>${pillFor(pick(row,F.status),STATUS)}
+    </div>
+    ${pick(row,F.alias)?`<div class="muted" style="margin-top:4px">Alias: <b>${esc(pick(row,F.alias))}</b></div>`:''}
+    <div class="grid mt">
+      ${kv('Material',esc(matTxt))}
+      ${kv('Tipe',esc(tipeTxt))}
+      ${kv('Asal',esc(pick(row,F.asal)))}
+      ${kv('Tanggal registrasi',esc(pick(row,F.regdate)))}
+      ${kv('Sumber / asal lokasi',esc(pick(row,F.sumber)))}
+      ${kv('Induk',induk?`<a href="${esc(linkFor(induk))}" class="mono">${esc(induk)}</a>`:'')}
+      ${kv('Massa (awal → kini)',massa)}
+      ${kv('Kadar air',kadar?esc(kadar)+'%':'')}
+      ${kv('Kondisi sampel',esc(pick(row,F.kondS)))}
+      ${kv('Custodian',esc(pick(row,F.cust)))}
+      ${kv('Lokasi simpan',esc(pick(row,F.lokasi)))}
+      ${kv('Kondisi simpan',esc(pick(row,F.kondSimpan)))}
+    </div>
+    ${pick(row,F.catatan)?`<div class="kv"><div class="k">Catatan</div><div class="v">${esc(pick(row,F.catatan))}</div></div>`:''}
+    ${children.length?`<div class="kv"><div class="k">Turunan (${children.length})</div><div class="v">`+children.map(c=>`<a href="${esc(linkFor(pick(c,F.kode)))}" class="tag">${esc(pick(c,F.kode))}</a>`).join(' ')+`</div></div>`:''}
+  </div></div>`;
+
+  if(DATA.uji.length || tests.length){
+    h+=`<div class="card mb"><div class="card-h"><h3>Pengujian</h3><span class="micro">${tests.length} entri</span></div>`;
+    if(tests.length){
+      h+=`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Kategori</th><th>Lab</th><th>No. Laporan</th><th>Status</th><th>Hasil ringkas</th></tr></thead><tbody>`;
+      tests.forEach(t=>{h+=`<tr><td><b>${esc(pick(t,FT.kategori))}</b><div class="muted small">${esc(pick(t,FT.metode))}</div></td><td>${esc(pick(t,FT.lab))}</td><td class="mono">${esc(pick(t,FT.cert)||'—')}</td><td>${pillFor(pick(t,FT.status),TSTATUS)}</td><td>${esc(pick(t,FT.hasil))}</td></tr>`;});
+      h+=`</tbody></table></div>`;
+    } else h+=`<div class="card-b muted small">Belum ada entri pengujian untuk kode ini.</div>`;
+    h+=`</div>`;
+  }
+  if(DATA.log.length || moves.length){
+    if(moves.length){
+      h+=`<div class="card mb"><div class="card-h"><h3>Riwayat penyimpanan</h3><span class="micro">${moves.length} catatan</span></div>`;
+      h+=`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Waktu</th><th>Aksi</th><th>Dari</th><th>Ke</th><th>Oleh</th><th>Keterangan</th></tr></thead><tbody>`;
+      moves.forEach(m=>{h+=`<tr><td class="mono small">${esc(pick(m,FL.waktu))}</td><td>${esc(pick(m,FL.aksi))}</td><td>${esc(pick(m,FL.dari)||'—')}</td><td>${esc(pick(m,FL.ke)||'—')}</td><td>${esc(pick(m,FL.oleh))}</td><td>${esc(pick(m,FL.ket))}</td></tr>`;});
+      h+=`</tbody></table></div></div>`;
+    }
+  }
+  app.innerHTML=h;
+}
+
+/* ---------- RENDER: index/daftar + cari ---------- */
+function renderIndex(){
+  let h=`<div class="card mb"><div class="card-b">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input class="input" id="q" placeholder="Cari kode / alias / material…" style="flex:1;min-width:200px" oninput="filterList()">
+    </div>
+    <div class="muted small mt">${DATA.induk.length} sampel terdaftar. Pindai QR atau klik sampel untuk melihat detail.</div>
+  </div></div>
+  <div class="card"><div id="list"></div></div>`;
+  app.innerHTML=h;
+  window.__rows=DATA.induk.slice();
+  drawList(window.__rows);
+}
+function drawList(rows){
+  const box=$('#list');
+  if(!rows.length){box.innerHTML='<div class="card-b muted small">Tidak ada yang cocok.</div>';return;}
+  box.innerHTML=rows.map(r=>{
+    const code=pick(r,F.kode),mat=pick(r,F.material);
+    return `<div class="list-row" onclick="location.href='${esc(linkFor(code))}'">
+      <span class="lc">${esc(code)}</span>
+      <span class="la">${esc(pick(r,F.alias)||'')}${mat?` · ${esc(MAT[mat]?MAT[mat]:mat)}`:''}</span>
+      ${pillFor(pick(r,F.status),STATUS)}
+    </div>`;
+  }).join('');
+}
+function filterList(){
+  const q=($('#q').value||'').toLowerCase().trim();
+  const rows=window.__rows.filter(r=>!q || [pick(r,F.kode),pick(r,F.alias),pick(r,F.material),pick(r,F.asal),pick(r,F.status)].join(' ').toLowerCase().includes(q));
+  drawList(rows);
+}
+
+/* ---------- RENDER: not found ---------- */
+function renderNotFound(code){
+  app.innerHTML=`<div class="card"><div class="card-b">
+    <div class="warn"><b>Kode tidak ditemukan:</b> <span class="mono">${esc(code)}</span><br>
+    Sampel ini belum ada di basis data, atau penulisannya berbeda.</div>
+    <div class="mt"><input class="input" id="q2" placeholder="Coba kode lain…" onkeydown="if(event.key==='Enter')location.href='${esc(linkFor(''))}'.replace(/kode=$/,'kode='+encodeURIComponent(this.value.trim()))"></div>
+    <div class="mt"><a class="btn" href="${esc(linkFor(''))}">← Lihat daftar sampel</a></div>
+  </div></div>`;
+}
+
+/* ---------- RENDER: belum dikonfigurasi (panduan) ---------- */
+function renderSetup(){
+  app.innerHTML=`<div class="card"><div class="card-h"><h3>Belum terhubung ke database GitHub</h3></div><div class="card-b">
+    <div class="note">Halaman ini siap menampilkan data sampel, tetapi sumber datanya belum diisi. Hubungkan ke file JSON GitHub yang sama dengan aplikasi SITRAS utama, lalu unggah ulang berkas ini ke hosting Anda.</div>
+    <ol class="steps">
+      <li>Buat repo GitHub publik untuk database SITRAS, atau pakai repo yang sudah dipakai aplikasi utama.</li>
+      <li>Dari aplikasi SITRAS utama, isi panel <b>Database GitHub</b> lalu klik <b>Kirim ke GitHub</b> sampai file JSON pusat terbentuk.</li>
+      <li>Buka berkas ini dengan editor teks, lalu isi <span class="tag">githubOwner</span>, <span class="tag">githubRepo</span>, <span class="tag">githubBranch</span>, dan <span class="tag">githubPath</span> di bagian <b>CONFIG</b>. Kalau sudah punya URL raw JSON, cukup isi <span class="tag">databaseURL</span>.</li>
+      <li>Host berkas ini (mis. GitHub Pages / Cloudflare Pages). Jadikan namanya <span class="tag">index.html</span> bila ingin URL pendek.</li>
+      <li>Di aplikasi SITRAS → tab <b>Panduan &amp; ISO</b> → <b>Pengaturan Tautan QR</b>, isi base-URL: <span class="tag">https://alamat-anda/?kode={kode}</span></li>
+    </ol>
+    <div class="warn mt"><b>Catatan privasi:</b> repo/file JSON yang dibaca katalog ini sebaiknya publik agar bisa diakses tanpa login. Cocok untuk katalog sampel; jangan taruh data sensitif di dalamnya. Pengisian/penyuntingan tetap dilakukan di aplikasi SITRAS utama.</div>
+    <div class="center mt"><a class="btn moss" href="?demo=1">Lihat contoh tampilan (data tengkawang)</a></div>
+  </div></div>`;
+}
+
+/* ---------- RENDER: error ---------- */
+function renderError(e){
+  app.innerHTML=`<div class="card"><div class="card-b">
+    <div class="err"><b>Gagal memuat data dari database GitHub.</b><br>${esc(String(e&&e.message||e))}</div>
+    <ul class="steps">
+      <li>Pastikan repo bersifat <b>public</b> bila katalog ini diakses tanpa login.</li>
+      <li>Pastikan <span class="tag">githubOwner</span>, <span class="tag">githubRepo</span>, <span class="tag">githubBranch</span>, dan <span class="tag">githubPath</span> benar.</li>
+      <li>Pastikan file JSON sudah pernah dibuat oleh aplikasi SITRAS utama.</li>
+      <li>Coba buka URL raw JSON langsung di browser untuk memastikan dapat diakses.</li>
+    </ul>
+    <div class="mt"><a class="btn" href="?demo=1">Lihat contoh tampilan</a></div>
+  </div></div>`;
+}
+
+/* ---------- init ---------- */
+async function init(){
+  $('#labName').textContent=CONFIG.labName||'Katalog Sampel';
+  $('#labSub').textContent=CONFIG.labSub||'';
+  $('#ft').innerHTML='';
+  const {demo,code}=params();
+  try{
+    if(demo){ demoData(); }
+    else if(hasGitHubSource()){
+      const db = await fetchGitHubDb();
+      DATA.induk = db.induk;
+      DATA.uji = db.uji;
+      DATA.log = db.log;
+    } else { renderSetup(); return; }
+  }catch(e){ renderError(e); return; }
+
+  if(code) renderDetail(code); else renderIndex();
+  const when=new Date().toLocaleString('id-ID');
+  $('#ft').innerHTML=(demo?'Mode contoh (data tengkawang) · ':'Sumber data: GitHub JSON · ')+'diperbarui '+esc(when)+' · '+esc(CONFIG.labSub||'');
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

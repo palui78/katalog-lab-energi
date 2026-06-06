@@ -12,7 +12,7 @@
   8. Salin URL /exec ke SITRAS -> Panduan & ISO -> Google Sheets Live Sync.
 */
 
-const SPREADSHEET_ID = '';
+const SPREADSHEET_ID = '1SsrqkH7m4AbTmW1qNAFSHo82tPKu6jhUl1r0pvhuge0';
 const WRITE_TOKEN = '';
 
 const SHEET_NAMES = {
@@ -97,8 +97,8 @@ function doPost(e) {
       ok: true,
       message: 'Data SITRAS berhasil disimpan ke Google Sheets',
       summary:
-        count_(payload.samples) + ' sampel | ' +
-        count_(payload.tests) + ' uji | ' +
+        count_(payload.samples) + ' sampel · ' +
+        count_(payload.tests) + ' uji · ' +
         count_(payload.movements) + ' log',
       updatedAt: new Date().toISOString(),
     });
@@ -170,9 +170,11 @@ function writeTableSheet_(ss, sheetName, columns, rows) {
       return normalizeCell_(row ? row[col[0]] : '');
     });
   });
-
-  sheet.clearContents();
   const values = [header].concat(dataRows);
+  const targetRows = Math.max(sheet.getMaxRows(), values.length);
+
+  sheet.getRange(1, 1, targetRows, header.length).clearDataValidations();
+  sheet.clearContents();
   sheet.getRange(1, 1, values.length, header.length).setValues(values);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, header.length).setFontWeight('bold');
