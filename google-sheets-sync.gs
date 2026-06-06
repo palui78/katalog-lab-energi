@@ -77,13 +77,25 @@ const MOVEMENT_COLUMNS = [
   ['note', 'Catatan'],
 ];
 
-function doGet() {
-  return jsonOutput_({
-    ok: true,
-    app: 'SITRAS Google Sheets Sync',
-    spreadsheet: getSpreadsheet_().getName(),
-    sheetNames: SHEET_NAMES,
-  });
+function doGet(e) {
+  try {
+    var action = String((e && e.parameter && e.parameter.action) || '').toLowerCase();
+    if (action === 'export') {
+      validateReadRequest_(e);
+      return jsonOutput_(exportDatabase_());
+    }
+    return jsonOutput_({
+      ok: true,
+      app: 'SITRAS Google Sheets Sync',
+      spreadsheet: getSpreadsheet_().getName(),
+      sheetNames: SHEET_NAMES,
+    });
+  } catch (err) {
+    return jsonOutput_({
+      ok: false,
+      message: err && err.message ? err.message : String(err),
+    });
+  }
 }
 
 function doPost(e) {
@@ -139,12 +151,38 @@ function validatePayload_(payload) {
   }
 }
 
+function validateReadRequest_(e) {
+  if (WRITE_TOKEN && String((e && e.parameter && e.parameter.token) || '') !== WRITE_TOKEN) {
+    throw new Error('Token sinkron Google Sheets tidak cocok.');
+  }
+}
+
 function writeDatabase_(payload) {
   const ss = getSpreadsheet_();
   writeTableSheet_(ss, SHEET_NAMES.samples, SAMPLE_COLUMNS, payload.samples || []);
   writeTableSheet_(ss, SHEET_NAMES.tests, TEST_COLUMNS, payload.tests || []);
   writeTableSheet_(ss, SHEET_NAMES.movements, MOVEMENT_COLUMNS, payload.movements || []);
   writeMetaSheet_(ss, payload);
+}
+
+function exportDatabase_() {
+  var ss = getSpreadsheet_();
+  var sharedConfig = readMetaConfig_(ss);
+  var samples = readTableSheet_(ss, SHEET_NAMES.samples, SAMPLE_COLUMNS);
+  var tests = readTableSheet_(ss, SHEET_NAMES.tests, TEST_COLUMNS);
+  var movements = readTableSheet_(ss, SHEET_NAMES.movements, MOVEMENT_COLUMNS);
+  return {
+    ok: true,
+    schema: 'sitras-sheet-sync',
+    version: 1,
+    app: 'SITRAS',
+    updatedAt: new Date().toISOString(),
+    sharedConfig: sharedConfig,
+    samples: samples,
+    tests: tests,
+    movements: movements,
+    summary: count_(samples) + ' sampel | ' + count_(tests) + ' uji | ' + count_(movements) + ' log',
+  };
 }
 
 function getSpreadsheet_() {
@@ -184,6 +222,42 @@ function writeTableSheet_(ss, sheetName, columns, rows) {
   }
 }
 
+function readTableSheet_(ss, sheetName, columns) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return [];
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  var values = sheet.getRange(2, 1, lastRow - 1, columns.length).getValues();
+  return values
+    .filter(function (row) {
+      return row.some(function (cell) {
+        return String(cell == null ? '' : cell).trim() !== '';
+      });
+    })
+    .map(function (row) {
+      var out = {};
+      columns.forEach(function (col, idx) {
+        out[col[0]] = denormalizeCell_(row[idx]);
+      });
+      return out;
+    });
+}
+
+function readMetaConfig_(ss) {
+  var sheet = ss.getSheetByName(SHEET_NAMES.meta);
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+  var map = {};
+  values.forEach(function (row) {
+    var key = String(row[0] == null ? '' : row[0]).trim();
+    if (key) map[key] = row[1];
+  });
+  var shared = {};
+  if (map.Origin) shared.origin = String(map.Origin);
+  if (map['QR URL']) shared.qrUrl = String(map['QR URL']);
+  return shared;
+}
+
 function writeMetaSheet_(ss, payload) {
   let sheet = ss.getSheetByName(SHEET_NAMES.meta);
   if (!sheet) {
@@ -214,6 +288,12 @@ function normalizeCell_(value) {
   if (value === null || typeof value === 'undefined') return '';
   if (Object.prototype.toString.call(value) === '[object Date]') return value.toISOString();
   if (typeof value === 'object') return JSON.stringify(value);
+  return value;
+}
+
+function denormalizeCell_(value) {
+  if (value === null || typeof value === 'undefined') return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') return value.toISOString();
   return value;
 }
 

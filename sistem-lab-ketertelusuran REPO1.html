@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lab Energi Terbarukan POLIBAN — Ketertelusuran Sampel (SITRAS)</title>
+<title>Lab Teknik Otomotif POLIBAN — Ketertelusuran Sampel (SITRAS)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&display=swap" rel="stylesheet">
@@ -213,22 +213,20 @@ textarea{resize:vertical; min-height:64px}
 
 /* print labels */
 #print-area{display:none}
-body.printing{background:#fff}
 @media print{
-  html, body{background:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
   /* sembunyikan seluruh antarmuka; hanya area cetak yang tampil (display, bukan visibility,
      agar paginasi stiker termal tidak menyisakan halaman kosong) */
   body.printing > *{ display:none !important; }
   body.printing #print-area{ display:block !important; }
-  #print-area, #print-area *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 
   /* Mode lembar A4 (grid label) */
   #print-area.sheet{ padding:8mm; }
-  @page{ size:A4 portrait; margin:8mm; }
+  @page{ margin:8mm; }
 
   /* Mode termal 40×40 mm */
-  #print-area.thermal{ padding:0; width:40mm; margin:0; }
-  /* Ukuran final mode termal dipaksa ulang oleh JS sebelum print dibuka */
+  @page thermal{ size:40mm 40mm; margin:0; }
+  #print-area.thermal{ padding:0; }
+  #print-area.thermal .lbl-t{ page:thermal; }
 }
 /* --- label A4 (grid) --- */
 .lbl-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:6mm}
@@ -241,15 +239,15 @@ body.printing{background:#fff}
 .lbl .qt .ls{font-size:7.5px; color:#555; margin-top:3px; letter-spacing:.04em; text-transform:uppercase}
 /* --- label termal 40×40 mm (teks hitam pekat utk printer termal) --- */
 .lbl-t{ width:40mm; height:40mm; box-sizing:border-box; overflow:hidden; background:#fff; color:#000;
-        font-family:"IBM Plex Mono",monospace; padding:1.8mm 1.8mm; position:relative; margin:0;
+        font-family:"IBM Plex Mono",monospace; padding:1.8mm 1.8mm;
         page-break-after:always; break-after:page; }
 .lbl-t:last-child{ page-break-after:auto; break-after:auto; }
 .lbl-t .tc{ font-weight:700; font-size:2.8mm; line-height:1.02; text-align:center; letter-spacing:-.18px;
             white-space:nowrap; overflow:hidden; color:#000; }
-.lbl-t .row{ display:flex; align-items:flex-start; gap:1.5mm; width:100%; margin-top:1.3mm; }
-.lbl-t .qbox{ flex:0 0 22mm; width:22mm; height:22mm; display:flex; align-items:center; justify-content:center; }
+.lbl-t .row{ display:table; width:100%; table-layout:fixed; margin-top:1.3mm; }
+.lbl-t .qbox{ display:table-cell; width:22mm; height:22mm; vertical-align:middle; }
 .lbl-t .qbox img, .lbl-t .qbox canvas, .lbl-t .qbox table{ width:22mm !important; height:22mm !important; display:block; image-rendering:pixelated; }
-.lbl-t .info{ flex:1 1 auto; min-width:0; line-height:1.2; color:#000; }
+.lbl-t .info{ display:table-cell; vertical-align:top; padding-left:1.5mm; line-height:1.2; color:#000; }
 .lbl-t .info .a{ font-size:2.05mm; font-weight:700; color:#000; word-break:break-word; }
 .lbl-t .info .m{ font-size:1.9mm; color:#000; word-break:break-word; margin-top:.4mm; }
 .lbl-t .info .d{ font-size:1.75mm; color:#000; margin-top:.35mm; }
@@ -268,12 +266,12 @@ body.printing{background:#fff}
 <header class="top">
   <div class="top-inner">
     <div class="brand">
-      <div class="logo" id="brandLogo" title="Lab Energi Terbarukan POLIBAN">
+      <div class="logo" title="Lab Teknik Otomotif POLIBAN">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5.5 17a2 2 0 0 0 1.8 3h9.4a2 2 0 0 0 1.8-3L14 9.5V3"/><path d="M7.5 14h9"/></svg>
       </div>
       <div>
-        <h1 class="serif" id="brandName">Lab Energi Terbarukan POLIBAN</h1>
-        <div class="sub" id="brandSub">Politeknik Negeri Banjarmasin · Ketertelusuran Sampel (SITRAS) · ISO/IEC 17025</div>
+        <h1 class="serif">Lab Teknik Otomotif POLIBAN</h1>
+        <div class="sub">Politeknik Negeri Banjarmasin · Ketertelusuran Sampel (SITRAS) · ISO/IEC 17025</div>
       </div>
     </div>
     <div class="spacer"></div>
@@ -284,9 +282,6 @@ body.printing{background:#fff}
     <button class="btn" onclick="App.openSyncHub()" title="Buka pengaturan sinkron atau tarik data GitHub">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
       Sinkron Data
-    </button>
-    <button class="btn" onclick="App.openResetModal()" title="Reset data (commissioning)" style="color:#a8432e;padding-left:11px;padding-right:11px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 2v6h6"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg>
     </button>
     <button class="btn pri" onclick="App.openRegister()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -345,49 +340,17 @@ const TEST_STATUS = {
 const TEST_CATS = ['Proksimat','Ultimat (CHNS-O)','FTIR-ATR','Pirolisis (RSM-CCD run)','Nilai kalor (HHV)','Kadar air','Densitas / bulk density','GC-MS bio-oil','Bilangan asam','Lainnya'];
 const STORAGE_COND = ['Suhu ruang','Desikator','Lemari asam','Kulkas 4°C','Freezer -20°C','Botol gelap','Vakum / kedap'];
 
-/* ---------- Lapisan penyimpanan (window.storage + localStorage + fallback memori) ---------- */
-function hasLocalStore(){
-  try{
-    const s = window.localStorage;
-    if(!s) return false;
-    const probe = '__sitras_probe__';
-    s.setItem(probe, '1');
-    s.removeItem(probe);
-    return true;
-  }catch(e){
-    return false;
-  }
-}
+/* ---------- Lapisan penyimpanan (window.storage + fallback memori) ---------- */
 const Store = {
   mem:{},
   async get(key){
-    try{
-      if(window.storage&&window.storage.get){
-        const r=await window.storage.get(key);
-        if(r&&r.value!=null) return JSON.parse(r.value);
-      }
-    }
+    try{ if(window.storage&&window.storage.get){ const r=await window.storage.get(key); if(r&&r.value!=null) return JSON.parse(r.value); } }
     catch(e){/* key tidak ada / storage off → fallback */}
-    try{
-      if(hasLocalStore()){
-        const raw = window.localStorage.getItem(key);
-        if(raw!=null) return JSON.parse(raw);
-      }
-    }catch(e){/* localStorage off â†’ fallback */}
     return (key in this.mem)? this.mem[key] : null;
   },
   async set(key,val){
     this.mem[key]=val;
-    try{
-      if(window.storage&&window.storage.set){
-        await window.storage.set(key, JSON.stringify(val));
-      }
-    }catch(e){/* lanjut ke localStorage / memori */}
-    try{
-      if(hasLocalStore()){
-        window.localStorage.setItem(key, JSON.stringify(val));
-      }
-    }catch(e){/* memori saja */}
+    try{ if(window.storage&&window.storage.set){ await window.storage.set(key, JSON.stringify(val)); } }catch(e){/* memori saja */}
     return val;
   }
 };
@@ -410,8 +373,6 @@ const SHEET_SYNC_SCHEMA='sitras-sheet-sync';
 const SHEET_SYNC_VERSION=1;
 const GSHEET_SYNC_DELAY_MS=1200;
 const DEFAULT_SHEET_WRITE_URL='https://script.google.com/macros/s/AKfycbz0TbXdQINlYtVYTbG_Zk-O2VqEYpcGHhRE9hyuFLVDSAXEI6KnWvygFRT5kmThZc5S/exec';
-const DEFAULT_LAB_NAME='Lab Energi Terbarukan POLIBAN';
-const DEFAULT_LAB_SUB='Politeknik Negeri Banjarmasin · Ketertelusuran Sampel (SITRAS) · ISO/IEC 17025';
 const SheetSync = {timer:null, busy:false, pending:false, lastError:'', lastErrorAt:0};
 let VIEW = 'dash';
 let SEARCH = '';
@@ -451,8 +412,6 @@ function closeModal(){ $('#overlay').classList.remove('show'); $('#modal').inner
 function cfgDefaults(cfg){
   const next = (cfg && typeof cfg==='object') ? {...cfg} : {};
   if(!hasOwn(next,'origin') || !next.origin) next.origin='LHI';
-  if(!hasOwn(next,'labName') || !String(next.labName||'').trim()) next.labName = DEFAULT_LAB_NAME;
-  if(!hasOwn(next,'labSub')  || !String(next.labSub||'').trim())  next.labSub  = DEFAULT_LAB_SUB;
   if(!hasOwn(next,'qrUrl')) next.qrUrl = DEFAULT_QR_URL;
   if(!hasOwn(next,'sheetBI')) next.sheetBI = DEFAULT_SHEET_BI;
   if(!hasOwn(next,'sheetUJI')) next.sheetUJI = '';
@@ -490,8 +449,6 @@ async function loadDB(){
   }
   if(hasGitHubSource() && DB.cfg.githubAutoPull!==false){
     await pullFromGitHub({manual:false, quiet:true, renderAfter:false});
-  }else if(!hasAnyData() && hasSheetWriteTarget()){
-    await pullFromGoogleSheetsSync({manual:false, quiet:true, renderAfter:false, onlyWhenEmpty:true});
   }
 }
 async function save(part, opts={}){
@@ -503,9 +460,6 @@ async function save(part, opts={}){
     scheduleGitHubPush(part);
     scheduleSheetPush(part);
   }
-}
-function hasAnyData(){
-  return !!(DB.samples.length || DB.tests.length || DB.movements.length);
 }
 
 /* ---------- Generator kode sampel ----------
@@ -978,12 +932,6 @@ function viewGuide(){
   return `
   <div class="view-head"><div><h2>Panduan Sistem & Selaras ISO/IEC 17025</h2><p>Ringkasan filosofi, konvensi penomoran, alur 6 tahap, dan pemetaan ke klausul ISO/IEC 17025:2017. Bagian ini juga cocok dijadikan lampiran SOP/tesis.</p></div></div>
 
-  <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Identitas Laboratorium</h3><span class="micro">tampil di header, judul tab, &amp; label cetak</span></div><div class="card-b">
-    <div class="field"><label>Nama laboratorium</label><input type="text" id="brandNameInput" value="${esc(DB.cfg.labName||DEFAULT_LAB_NAME)}" placeholder="Lab Energi Terbarukan POLIBAN"></div>
-    <div class="field"><label>Subjudul</label><input type="text" id="brandSubInput" value="${esc(DB.cfg.labSub||DEFAULT_LAB_SUB)}" placeholder="Politeknik Negeri Banjarmasin · …"></div>
-    <button class="btn amber" onclick="App.saveBranding()">Simpan identitas</button>
-  </div></div>
-
   <div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Alur kerja 6 tahap</h3></div><div class="card-b">
     <div class="flowstep">
       <span class="fs">1 · Kode Sampel</span><span class="ar">→</span>
@@ -1224,61 +1172,6 @@ function buildPrintJobs(codes, copies, footer){
   });
   return jobs;
 }
-let PRINT_BUSY = false;
-let PRINT_CLEANUP_TIMER = 0;
-let PRINT_HOOKS_READY = false;
-let PRINT_MEDIA_QUERY = null;
-function resetPrintTimer(){
-  if(!PRINT_CLEANUP_TIMER) return;
-  clearTimeout(PRINT_CLEANUP_TIMER);
-  PRINT_CLEANUP_TIMER = 0;
-}
-function cleanupPrintState(){
-  document.body.classList.remove('printing');
-  resetPrintTimer();
-  PRINT_BUSY = false;
-}
-function ensurePrintHooks(){
-  if(PRINT_HOOKS_READY) return;
-  window.addEventListener('afterprint', cleanupPrintState);
-  if(window.matchMedia){
-    PRINT_MEDIA_QUERY = window.matchMedia('print');
-    const handlePrintMedia = ev => { if(!ev.matches) cleanupPrintState(); };
-    if(PRINT_MEDIA_QUERY && typeof PRINT_MEDIA_QUERY.addEventListener === 'function') PRINT_MEDIA_QUERY.addEventListener('change', handlePrintMedia);
-    else if(PRINT_MEDIA_QUERY && typeof PRINT_MEDIA_QUERY.addListener === 'function') PRINT_MEDIA_QUERY.addListener(handlePrintMedia);
-  }
-  PRINT_HOOKS_READY = true;
-}
-function waitForPrintPaint(){
-  return new Promise(resolve=>{
-    requestAnimationFrame(()=>requestAnimationFrame(resolve));
-  });
-}
-function printPageCss(mode){
-  if(mode==='thermal'){
-    return `@media print{
-      @page{ size:40mm 40mm; margin:0; }
-      html, body{ width:40mm !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
-      #print-area.thermal{ width:40mm !important; margin:0 !important; padding:0 !important; }
-      #print-area.thermal .lbl-t{ width:40mm !important; height:40mm !important; margin:0 !important; page-break-after:always !important; break-after:page !important; }
-      #print-area.thermal .lbl-t:last-child{ page-break-after:auto !important; break-after:auto !important; }
-    }`;
-  }
-  return `@media print{
-    @page{ size:A4 portrait; margin:8mm; }
-    html, body{ margin:0 !important; padding:0 !important; }
-    #print-area.sheet{ padding:8mm !important; width:auto !important; margin:0 !important; }
-  }`;
-}
-function setPrintPageStyle(mode){
-  let styleEl = document.getElementById('print-page-style');
-  if(!styleEl){
-    styleEl = document.createElement('style');
-    styleEl.id = 'print-page-style';
-    document.head.appendChild(styleEl);
-  }
-  styleEl.textContent = printPageCss(mode);
-}
 function labelHTML_A4(job){
   const s = job.sample;
   const ctx = labelContextLine(s);
@@ -1307,10 +1200,8 @@ function labelHTML_T(job){
       </div>
     </div></div>`;
 }
-async function doPrint(codes, mode, copies, footer){
+function doPrint(codes, mode, copies, footer){
   mode = labelModeValue(mode || DB.cfg.labelModeDefault);
-  if(PRINT_BUSY){ toast('Dialog printer masih aktif. Tutup dulu lalu coba lagi.','err'); return; }
-  setPrintPageStyle(mode);
   const jobs = buildPrintJobs(codes, copies, footer);
   if(!jobs.length){ toast('Tidak ada sampel dipilih','err'); return; }
   const area=$('#print-area');
@@ -1320,26 +1211,18 @@ async function doPrint(codes, mode, copies, footer){
     jobs.forEach(job=> makeQR(document.getElementById('lq-'+job.key), qrText(job.sample), 240, (typeof QRCode!=='undefined'?QRCode.CorrectLevel.L:null)));
   } else {
     area.className='sheet';
-    area.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;margin-bottom:6mm;color:#333">Label Sampel — ${esc(DB.cfg.labName||DEFAULT_LAB_NAME)} · dicetak ${new Date().toLocaleString('id-ID')}</div><div class="lbl-grid">${jobs.map(labelHTML_A4).join('')}</div>`;
+    area.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;margin-bottom:6mm;color:#333">Label Sampel — Lab Teknik Otomotif POLIBAN · dicetak ${new Date().toLocaleString('id-ID')}</div><div class="lbl-grid">${jobs.map(labelHTML_A4).join('')}</div>`;
     jobs.forEach(job=> makeQR(document.getElementById('lq-'+job.key), qrText(job.sample), 78));
   }
-  ensurePrintHooks();
-  cleanupPrintState();
-  PRINT_BUSY = true;
   document.body.classList.add('printing');
-  await waitForPrintPaint();
-  PRINT_CLEANUP_TIMER = setTimeout(cleanupPrintState, 15000);
-  try{
-    window.print();
-  } catch(err){
-    cleanupPrintState();
-    toast('Dialog printer gagal dibuka','err');
-  }
+  const done=()=>{ document.body.classList.remove('printing'); window.removeEventListener('afterprint',done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(()=>{ window.print(); }, 350);
 }
 function printOne(code){
   const mode = labelModeValue(DB.cfg.labelModeDefault);
   const copies = labelCopiesValue(DB.cfg.labelCopiesDefault);
-  toast(mode==='thermal' ? 'Mode termal 40x40: skala 100%, margin none, header/footer off, pilih paper size 40x40 di driver printer' : 'Mode A4: kertas A4 portrait, skala 100%, margin default aplikasi');
+  toast(mode==='thermal' ? 'Cek setelan: kertas 40x40, Margins None, Headers/footers off' : 'Siapkan printer A4 dan pastikan skala 100%');
   doPrint([code], mode, copies, labelFooterText());
 }
 function printPicker(){
@@ -1649,7 +1532,7 @@ function seed(){
   toast('Contoh data tengkawang dimuat'); VIEW='dash'; render();
 }
 async function resetAll(){
-  if(!confirm('Hapus SEMUA data DAN kosongkan Google Sheet & GitHub yang terhubung?\n\nSinkron otomatis sedang aktif, jadi isi Google Sheet/GitHub akan ikut dikosongkan. Tindakan ini tidak dapat dibatalkan.')) return;
+  if(!confirm('Hapus SEMUA data sampel, pengujian, dan log? Tindakan ini tidak dapat dibatalkan.')) return;
   const keepCfg = cfgDefaults(DB.cfg||{origin:'LHI'});
   delete keepCfg.lastGitHubError;
   DB={samples:[],tests:[],movements:[],cfg:keepCfg};
@@ -1657,38 +1540,7 @@ async function resetAll(){
   await save('T');
   await save('M');
   await save('CFG');
-  closeModal(); toast('Semua data direset (lokal + cloud)'); VIEW='dash'; render();
-}
-async function resetLocalOnly(){
-  if(!confirm('Reset data di perangkat ini SAJA?\n\nGoogle Sheet & GitHub TIDAK akan diubah. (Perubahan berikutnya yang Anda simpan tetap akan tersinkron seperti biasa.)')) return;
-  const keepCfg = cfgDefaults(DB.cfg||{origin:'LHI'});
-  delete keepCfg.lastGitHubError;
-  DB={samples:[],tests:[],movements:[],cfg:keepCfg};
-  await save('S',{skipRemote:true});
-  await save('T',{skipRemote:true});
-  await save('M',{skipRemote:true});
-  await save('CFG',{skipRemote:true});
-  closeModal(); toast('Data lokal direset · Google Sheet & GitHub tetap aman'); VIEW='dash'; render();
-}
-function openResetModal(){
-  openModal(`
-    <div class="modal-h"><h3>Reset Data — Commissioning</h3><button class="x" onclick="App.closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-    <div class="modal-b">
-      <div class="callout" style="border-color:#e0b3a6;background:#f6e2dc;font-size:12.5px"><b>Perhatian.</b> Reset menghapus <b>semua sampel, pengujian, dan log</b> di aplikasi. Sinkron otomatis ke Google Sheets &amp; GitHub sedang <b>aktif</b>.</div>
-      <p style="font-size:13px;margin:14px 0 6px"><b>1. Unduh cadangan dulu</b> (disarankan):</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn sm ghost" onclick="App.exportCSV('samples')">⬇ Buku Induk</button>
-        <button class="btn sm ghost" onclick="App.exportCSV('tests')">⬇ Pengujian</button>
-        <button class="btn sm ghost" onclick="App.exportCSV('movements')">⬇ Log</button>
-      </div>
-      <p style="font-size:13px;margin:16px 0 6px"><b>2. Pilih cakupan reset:</b></p>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn" onclick="App.resetLocalOnly()" style="display:block;text-align:left;line-height:1.4">🧹 Reset perangkat ini saja<br><span class="micro">Membersihkan tampilan lokal. Google Sheet &amp; GitHub tetap utuh.</span></button>
-        <button class="btn danger" onclick="App.resetAll()" style="display:block;text-align:left;line-height:1.4">🗑 Reset total termasuk cloud<br><span class="micro">Mengosongkan juga Google Sheet &amp; GitHub — untuk membersihkan data uji commissioning.</span></button>
-      </div>
-    </div>
-    <div class="modal-f"><button class="btn ghost" onclick="App.closeModal()">Batal</button></div>
-  `);
+  toast('Semua data direset'); VIEW='dash'; render();
 }
 
 /* ============================================================
@@ -1872,7 +1724,6 @@ async function saveGitHubConfig(){
 }
 async function openSyncHub(){
   if(hasGitHubSource()) return pullFromGitHub();
-  if(hasSheetWriteTarget()) return pullFromGoogleSheetsSync();
   nav('guide');
   return false;
 }
@@ -2024,12 +1875,6 @@ async function pushToGitHub({manual=true, reason='manual'}={}){
 function sheetWriteUrl(){ return gitTrim(DB.cfg.sheetWriteUrl); }
 function sheetWriteToken(){ return gitTrim(DB.cfg.sheetWriteToken); }
 function hasSheetWriteTarget(){ return !!sheetWriteUrl(); }
-function sheetReadUrl(){
-  if(!hasSheetWriteTarget()) return '';
-  const sep = sheetWriteUrl().indexOf('?') >= 0 ? '&' : '?';
-  const token = sheetWriteToken();
-  return `${sheetWriteUrl()}${sep}action=export${token ? `&token=${encodeURIComponent(token)}` : ''}`;
-}
 function sheetTargetSummary(){
   if(!hasSheetWriteTarget()) return 'Belum dikonfigurasi.';
   const raw = sheetWriteUrl().replace(/^https?:\/\//,'');
@@ -2037,7 +1882,6 @@ function sheetTargetSummary(){
 }
 function sheetStatusText(){
   const parts = [];
-  if(DB.cfg.lastSheetPull) parts.push(`tarik ${fmtDT(DB.cfg.lastSheetPull)}`);
   if(DB.cfg.lastSheetPush) parts.push(`kirim ${fmtDT(DB.cfg.lastSheetPush)}`);
   if(DB.cfg.lastSheetSummary) parts.push(DB.cfg.lastSheetSummary);
   if(!parts.length) return 'Belum pernah sinkron.';
@@ -2073,17 +1917,6 @@ function serializeSheetSyncDb(reason){
   if(token) payload.token = token;
   return payload;
 }
-function applySheetSyncDb(payload){
-  if(!payload || typeof payload!=='object') throw new Error('Format data Google Sheets tidak valid');
-  if(payload.ok===false) throw new Error(payload.message || 'Google Sheets mengembalikan error');
-  if(payload.schema !== SHEET_SYNC_SCHEMA) throw new Error('Endpoint Google Sheets belum mengirim database SITRAS. Redeploy Apps Script terbaru dulu.');
-  DB.samples = Array.isArray(payload.samples) ? payload.samples : [];
-  DB.tests = Array.isArray(payload.tests) ? payload.tests : [];
-  DB.movements = Array.isArray(payload.movements) ? payload.movements : [];
-  const shared = (payload.sharedConfig && typeof payload.sharedConfig==='object') ? payload.sharedConfig : {};
-  if(hasOwn(shared,'origin') && shared.origin) DB.cfg.origin = shared.origin;
-  if(hasOwn(shared,'qrUrl')) DB.cfg.qrUrl = shared.qrUrl;
-}
 function reportSheetError(message, manual){
   const text = String(message||'Sinkron Google Sheets gagal');
   DB.cfg.lastSheetError = text;
@@ -2108,40 +1941,6 @@ function scheduleSheetPush(reason){
     SheetSync.timer = null;
     pushToGoogleSheets({manual:false, reason:reason||'autosave'});
   }, GSHEET_SYNC_DELAY_MS);
-}
-async function pullFromGoogleSheetsSync({manual=true, quiet=false, renderAfter=true, onlyWhenEmpty=false}={}){
-  if(!hasSheetWriteTarget()){
-    if(manual && !quiet) toast('URL Web App Google Sheets belum diisi','err');
-    return false;
-  }
-  if(onlyWhenEmpty && hasAnyData()) return false;
-  try{
-    const res = await fetch(sheetReadUrl(), {
-      method:'GET',
-      headers:{'Accept':'application/json, text/plain, */*'},
-      cache:'no-store',
-    });
-    if(!res.ok){
-      const txt = await res.text();
-      throw new Error(`Gagal memuat data Google Sheets (HTTP ${res.status})${txt ? ': '+txt.slice(0,160) : ''}`);
-    }
-    const out = await res.json();
-    applySheetSyncDb(out);
-    DB.cfg.lastSheetPull = new Date().toISOString();
-    DB.cfg.lastSheetSummary = out && out.summary ? String(out.summary) : `${DB.samples.length} sampel Â· ${DB.tests.length} uji Â· ${DB.movements.length} log`;
-    delete DB.cfg.lastSheetError;
-    await save('S',{skipRemote:true});
-    await save('T',{skipRemote:true});
-    await save('M',{skipRemote:true});
-    DB.cfg.lastSync = DB.cfg.lastSheetPull;
-    await save('CFG',{skipRemote:true});
-    if(renderAfter) render();
-    if(manual && !quiet) toast(`Data Google Sheets dimuat: ${DB.samples.length} sampel`);
-    return true;
-  }catch(e){
-    if(!quiet) reportSheetError(e.message||e, manual);
-    return false;
-  }
 }
 async function pushToGoogleSheets({manual=true, reason='manual'}={}){
   if(captureSheetSyncConfigFromForm()) await save('CFG',{skipRemote:true});
@@ -2330,7 +2129,6 @@ async function _printSelected(mode){
    ============================================================ */
 const App = {
   nav, detail, closeModal, exportCSV, seed, resetAll,
-  resetLocalOnly, openResetModal, saveBranding,
   openRegister:()=>nav('reg'),
   openSyncGuide:()=>nav('guide'),
   openSyncHub,
@@ -2347,22 +2145,8 @@ const App = {
 };
 window.App = App;
 
-function applyBranding(){
-  const n=(DB.cfg&&DB.cfg.labName)||DEFAULT_LAB_NAME, s=(DB.cfg&&DB.cfg.labSub)||DEFAULT_LAB_SUB;
-  try{ document.title=n+' — Ketertelusuran Sampel (SITRAS)'; }catch(e){}
-  const h=document.getElementById('brandName'); if(h) h.textContent=n;
-  const sub=document.getElementById('brandSub'); if(sub) sub.textContent=s;
-  const lg=document.getElementById('brandLogo'); if(lg) lg.setAttribute('title',n);
-}
-async function saveBranding(){
-  const n=$('#brandNameInput')?$('#brandNameInput').value.trim():'';
-  const s=$('#brandSubInput')?$('#brandSubInput').value.trim():'';
-  DB.cfg.labName=n||DEFAULT_LAB_NAME; DB.cfg.labSub=s||DEFAULT_LAB_SUB;
-  await save('CFG',{skipRemote:true}); applyBranding(); toast('Identitas laboratorium disimpan');
-}
 (async function init(){
   await loadDB();
-  applyBranding();
   render();
 })();
 </script>
