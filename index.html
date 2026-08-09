@@ -122,7 +122,16 @@ function params(){
   let code = f.code || u.searchParams.get('kode') || u.searchParams.get('s') || '';
   if(!code && location.hash.length>1) code=decodeURIComponent(location.hash.slice(1));
   if(!code){ const m=location.pathname.match(/\/s\/([^\/?#]+)/); if(m) code=decodeURIComponent(m[1]); }
-  return {demo, code:(code||'').trim()};
+  const process = {
+    pyro: f.pyro || u.searchParams.get('px')==='1',
+    processCode: f.processCode || u.searchParams.get('pc') || '',
+    runBatch: f.runBatch || u.searchParams.get('rb') || '',
+    temp: f.temp || u.searchParams.get('tp') || '',
+    rate: f.rate || u.searchParams.get('rt') || '',
+    hold: f.hold || u.searchParams.get('hd') || '',
+    parent: f.parent || u.searchParams.get('ik') || '',
+  };
+  return {demo, code:(code||'').trim(), process};
 }
 function linkFor(code){
   const u=new URL(location.href); u.hash=''; u.searchParams.delete('s');
@@ -172,6 +181,7 @@ const F={
   lokasi:['lokasi simpan','lokasi'], kondSimpan:['kondisi simpan'], status:['status'], catatan:['catatan','keterangan'],
 };
 const FT={kode:['kode sampel','kode'],kategori:['kategori uji','kategori'],metode:['metode'],lab:['lab penguji','lab'],
+  process:['kode proses'],run:['run batch','kode run','kode run / batch'],params:['parameter','params','suhu/laju/waktu tahan'],
   analis:['analis'],mulai:['tgl mulai'],selesai:['tgl selesai'],cert:['no. laporan/sertifikat','no. laporan','no laporan','sertifikat'],
   status:['status'],hasil:['hasil ringkas','hasil'],berkas:['berkas / link','berkas','file']};
 const FL={waktu:['tanggal-waktu','tanggal','waktu'],kode:['kode sampel','kode'],aksi:['aksi'],
@@ -206,7 +216,7 @@ function demoData(){
 }
 
 /* ---------- RENDER: detail ---------- */
-function renderDetail(code){
+function renderDetail(code, scan={}){
   const row=DATA.induk.find(r=>pick(r,F.kode).trim().toUpperCase()===code.toUpperCase());
   if(!row) return renderNotFound(code);
   const matc=pick(row,F.material), tipec=pick(row,F.tipe);
@@ -221,6 +231,7 @@ function renderDetail(code){
   // pengujian & log terkait
   const tests=DATA.uji.filter(r=>pick(r,FT.kode).trim().toUpperCase()===code.toUpperCase());
   const moves=DATA.log.filter(r=>pick(r,FL.kode).trim().toUpperCase()===code.toUpperCase());
+  const hasScanProcess = !!(scan && (scan.pyro || scan.processCode || scan.runBatch || scan.temp || scan.rate || scan.hold || scan.parent));
 
   let h=`<div class="mb"><a href="${esc(linkFor(''))}">← Daftar sampel</a></div>`;
   h+=`<div class="card mb"><div class="card-b">
@@ -245,6 +256,20 @@ function renderDetail(code){
     ${pick(row,F.catatan)?`<div class="kv"><div class="k">Catatan</div><div class="v">${esc(pick(row,F.catatan))}</div></div>`:''}
     ${children.length?`<div class="kv"><div class="k">Turunan (${children.length})</div><div class="v">`+children.map(c=>`<a href="${esc(linkFor(pick(c,F.kode)))}" class="tag">${esc(pick(c,F.kode))}</a>`).join(' ')+`</div></div>`:''}
   </div></div>`;
+
+  if(hasScanProcess){
+    h+=`<div class="card mb"><div class="card-h"><h3>Hasil Scan QR Proses</h3><span class="micro">Pyrolysis</span></div><div class="card-b">
+      <div class="note">QR ini membuka detail sampel sekaligus membawa konteks proses pyrolysis agar reviewer dan operator tidak tertukar antar run.</div>
+      <div class="grid mt">
+        ${kv('Kode proses',scan.processCode?`<span class="mono">${esc(scan.processCode)}</span>`:'')}
+        ${kv('Run batch',scan.runBatch?`<span class="mono">${esc(scan.runBatch)}</span>`:'')}
+        ${kv('Induk proses',scan.parent?`<span class="mono">${esc(scan.parent)}</span>`:'')}
+        ${kv('Suhu',scan.temp?esc(scan.temp)+' °C':'')}
+        ${kv('Laju',scan.rate?esc(scan.rate)+' °C/min':'')}
+        ${kv('Waktu tahan',scan.hold?esc(scan.hold)+' min':'')}
+      </div>
+    </div></div>`;
+  }
 
   if(DATA.uji.length || tests.length){
     h+=`<div class="card mb"><div class="card-h"><h3>Pengujian</h3><span class="micro">${tests.length} entri</span></div>`;
@@ -357,6 +382,84 @@ async function init(){
   const when=new Date().toLocaleString('id-ID');
   $('#ft').innerHTML=(demo?'Mode contoh (data tengkawang) · ':'Sumber data: Google Sheets · ')+'diperbarui '+esc(when)+' · '+esc(CONFIG.labSub||'');
 }
+/* ---------- override: detail scan QR proses ---------- */
+renderDetail = function(code, scan={}){
+  const activeScan = (scan && Object.keys(scan).length) ? scan : (params().process || {});
+  const row=DATA.induk.find(r=>pick(r,F.kode).trim().toUpperCase()===code.toUpperCase());
+  if(!row) return renderNotFound(code);
+  const matc=pick(row,F.material), tipec=pick(row,F.tipe);
+  const matTxt=matc?(MAT[matc]?matc+' - '+MAT[matc]:matc):'';
+  const tipeTxt=tipec?(TIPE[tipec]?tipec+' - '+TIPE[tipec]:tipec):'';
+  const induk=pick(row,F.induk);
+  const mAwal=pick(row,F.mAwal),mKini=pick(row,F.mKini),sat=pick(row,F.satuan);
+  const massa=(mAwal||mKini)?`${esc(mAwal||'?')} &rarr; <b>${esc(mKini||'?')}</b> ${esc(sat||'')}`:'';
+  const kadar=pick(row,F.kadar);
+  const children=DATA.induk.filter(r=>pick(r,F.induk).trim().toUpperCase()===code.toUpperCase());
+  const tests=DATA.uji.filter(r=>pick(r,FT.kode).trim().toUpperCase()===code.toUpperCase());
+  const moves=DATA.log.filter(r=>pick(r,FL.kode).trim().toUpperCase()===code.toUpperCase());
+  const hasScanProcess = !!(activeScan && (activeScan.pyro || activeScan.processCode || activeScan.runBatch || activeScan.temp || activeScan.rate || activeScan.hold || activeScan.parent));
+
+  let h=`<div class="mb"><a href="${esc(linkFor(''))}"><- Daftar sampel</a></div>`;
+  h+=`<div class="card mb"><div class="card-b">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="codebig">${esc(pick(row,F.kode))}</span>${pillFor(pick(row,F.status),STATUS)}
+    </div>
+    ${pick(row,F.alias)?`<div class="muted" style="margin-top:4px">Alias: <b>${esc(pick(row,F.alias))}</b></div>`:''}
+    <div class="grid mt">
+      ${kv('Material',esc(matTxt))}
+      ${kv('Tipe',esc(tipeTxt))}
+      ${kv('Asal',esc(pick(row,F.asal)))}
+      ${kv('Tanggal registrasi',esc(pick(row,F.regdate)))}
+      ${kv('Sumber / asal lokasi',esc(pick(row,F.sumber)))}
+      ${kv('Induk',induk?`<a href="${esc(linkFor(induk))}" class="mono">${esc(induk)}</a>`:'')}
+      ${kv('Massa (awal -> kini)',massa)}
+      ${kv('Kadar air',kadar?esc(kadar)+'%':'')}
+      ${kv('Kondisi sampel',esc(pick(row,F.kondS)))}
+      ${kv('Custodian',esc(pick(row,F.cust)))}
+      ${kv('Lokasi simpan',esc(pick(row,F.lokasi)))}
+      ${kv('Kondisi simpan',esc(pick(row,F.kondSimpan)))}
+    </div>
+    ${pick(row,F.catatan)?`<div class="kv"><div class="k">Catatan</div><div class="v">${esc(pick(row,F.catatan))}</div></div>`:''}
+    ${children.length?`<div class="kv"><div class="k">Turunan (${children.length})</div><div class="v">`+children.map(c=>`<a href="${esc(linkFor(pick(c,F.kode)))}" class="tag">${esc(pick(c,F.kode))}</a>`).join(' ')+`</div></div>`:''}
+  </div></div>`;
+
+  if(hasScanProcess){
+    h+=`<div class="card mb"><div class="card-h"><h3>Hasil Scan QR Proses</h3><span class="micro">Pyrolysis</span></div><div class="card-b">
+      <div class="note">QR ini membawa konteks proses pyrolysis agar reviewer dan operator tidak tertukar antar run.</div>
+      <div class="grid mt">
+        ${kv('Kode proses',activeScan.processCode?`<span class="mono">${esc(activeScan.processCode)}</span>`:'')}
+        ${kv('Run batch',activeScan.runBatch?`<span class="mono">${esc(activeScan.runBatch)}</span>`:'')}
+        ${kv('Induk proses',activeScan.parent?`<span class="mono">${esc(activeScan.parent)}</span>`:'')}
+        ${kv('Suhu',activeScan.temp?esc(activeScan.temp)+'  C':'')}
+        ${kv('Laju',activeScan.rate?esc(activeScan.rate)+'  C/min':'')}
+        ${kv('Waktu tahan',activeScan.hold?esc(activeScan.hold)+' min':'')}
+      </div>
+    </div></div>`;
+  }
+
+  if(DATA.uji.length || tests.length){
+    h+=`<div class="card mb"><div class="card-h"><h3>Pengujian</h3><span class="micro">${tests.length} entri</span></div>`;
+    if(tests.length){
+      h+=`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Kategori</th><th>Lab</th><th>No. Laporan</th><th>Status</th><th>Hasil ringkas</th></tr></thead><tbody>`;
+      tests.forEach(t=>{
+        const processLine = [pick(t,FT.process), pick(t,FT.run)].filter(Boolean).join(' · ');
+        const paramLine = pick(t,FT.params);
+        h+=`<tr><td><b>${esc(pick(t,FT.kategori))}</b><div class="muted small">${esc(pick(t,FT.metode))}</div>${processLine?`<div class="mono small">${esc(processLine)}</div>`:''}${paramLine?`<div class="muted small">${esc(paramLine)}</div>`:''}</td><td>${esc(pick(t,FT.lab))}</td><td class="mono">${esc(pick(t,FT.cert)||'-')}</td><td>${pillFor(pick(t,FT.status),TSTATUS)}</td><td>${esc(pick(t,FT.hasil))}</td></tr>`;
+      });
+      h+=`</tbody></table></div>`;
+    } else h+=`<div class="card-b muted small">Belum ada entri pengujian untuk kode ini.</div>`;
+    h+=`</div>`;
+  }
+  if(DATA.log.length || moves.length){
+    if(moves.length){
+      h+=`<div class="card mb"><div class="card-h"><h3>Riwayat penyimpanan</h3><span class="micro">${moves.length} catatan</span></div>`;
+      h+=`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Waktu</th><th>Aksi</th><th>Dari</th><th>Ke</th><th>Oleh</th><th>Keterangan</th></tr></thead><tbody>`;
+      moves.forEach(m=>{h+=`<tr><td class="mono small">${esc(pick(m,FL.waktu))}</td><td>${esc(pick(m,FL.aksi))}</td><td>${esc(pick(m,FL.dari)||'-')}</td><td>${esc(pick(m,FL.ke)||'-')}</td><td>${esc(pick(m,FL.oleh))}</td><td>${esc(pick(m,FL.ket))}</td></tr>`;});
+      h+=`</tbody></table></div></div>`;
+    }
+  }
+  app.innerHTML=h;
+};
 document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>

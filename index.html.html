@@ -89,18 +89,20 @@ footer.ft{max-width:900px;margin:18px auto 0;padding:0 18px;color:var(--muted);f
 
 <script>
 /* =====================================================================
-   KONFIGURASI  —  isi lokasi database JSON di GitHub.
-   File ini membaca database pusat yang sama dengan aplikasi SITRAS utama.
-   Repo sebaiknya PUBLIC bila katalog ini ingin diakses tanpa login.
+   KONFIGURASI  —  isi URL CSV "Publish to web" dari Google Sheets di sini.
+   Cara: di Google Sheets → File → Share → Publish to web → pilih sheet →
+   format Comma-separated values (.csv) → Publish → salin tautannya.
+   Buku Induk WAJIB. Pengujian & Log Penyimpanan opsional (boleh dikosongkan).
    ===================================================================== */
 const CONFIG = {
   labName: "Lab Teknik Otomotif POLIBAN",
   labSub:  "Politeknik Negeri Banjarmasin · Katalog Sampel (read-only)",
-  githubOwner: "",       // mis. palui78
-  githubRepo:  "",       // mis. sitras-db
-  githubBranch:"main",
-  githubPath:  "data/sitras-db.json",
-  databaseURL: "",       // opsional: isi langsung URL raw JSON bila mau override
+  // Buku Induk (WAJIB) — tautan "Publish to web → CSV" dari Google Sheets:
+  bukuIndukCSV: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtKOl4UaFAFRdpgp_sHZiumtOWthyBt3lsA0kMocfuJkUD_wZxTx0uoAo61NSpHh9iiCE7gqrmpgiS/pub?gid=394958894&single=true&output=csv",
+  // Opsional — publikasikan sheet "Pengujian" & "Log Penyimpanan" yang sama,
+  // salin tautannya (base sama, hanya angka gid yang berbeda), lalu tempel di sini:
+  pengujianCSV: "",      // <-- tempel URL CSV sheet "Pengujian"
+  logCSV:       "",      // <-- tempel URL CSV sheet "Log Penyimpanan"
 };
 
 const MAT={SST:"Shorea stenoptera (tengkawang)",TKW:"Tengkawang"};
@@ -120,7 +122,16 @@ function params(){
   let code = f.code || u.searchParams.get('kode') || u.searchParams.get('s') || '';
   if(!code && location.hash.length>1) code=decodeURIComponent(location.hash.slice(1));
   if(!code){ const m=location.pathname.match(/\/s\/([^\/?#]+)/); if(m) code=decodeURIComponent(m[1]); }
-  return {demo, code:(code||'').trim()};
+  const process = {
+    pyro: f.pyro || u.searchParams.get('px')==='1',
+    processCode: f.processCode || u.searchParams.get('pc') || '',
+    runBatch: f.runBatch || u.searchParams.get('rb') || '',
+    temp: f.temp || u.searchParams.get('tp') || '',
+    rate: f.rate || u.searchParams.get('rt') || '',
+    hold: f.hold || u.searchParams.get('hd') || '',
+    parent: f.parent || u.searchParams.get('ik') || '',
+  };
+  return {demo, code:(code||'').trim(), process};
 }
 function linkFor(code){
   const u=new URL(location.href); u.hash=''; u.searchParams.delete('s');
@@ -153,25 +164,6 @@ function pick(o,names){
   for(const n of names){const k=keys.find(k=>k.trim().toLowerCase().includes(n));if(k)return o[k];}
   return '';
 }
-function gitTrim(v){ return String(v==null?'':v).trim(); }
-function hasGitHubSource(){
-  return !!(gitTrim(CONFIG.databaseURL) || (gitTrim(CONFIG.githubOwner) && gitTrim(CONFIG.githubRepo) && gitTrim(CONFIG.githubPath)));
-}
-function githubRawUrl(){
-  if(gitTrim(CONFIG.databaseURL)) return gitTrim(CONFIG.databaseURL);
-  return `https://raw.githubusercontent.com/${encodeURIComponent(gitTrim(CONFIG.githubOwner))}/${encodeURIComponent(gitTrim(CONFIG.githubRepo))}/${encodeURIComponent(gitTrim(CONFIG.githubBranch)||'main')}/${gitTrim(CONFIG.githubPath).split('/').map(encodeURIComponent).join('/')}`;
-}
-async function fetchGitHubDb(){
-  const url = githubRawUrl() + (githubRawUrl().includes('?') ? '&' : '?') + '_=' + Date.now();
-  const r = await fetch(url,{cache:'no-store'});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  const payload = await r.json();
-  return {
-    induk: Array.isArray(payload.samples) ? payload.samples : [],
-    uji: Array.isArray(payload.tests) ? payload.tests : [],
-    log: Array.isArray(payload.movements) ? payload.movements : [],
-  };
-}
 async function fetchCSV(url){
   const u=url+(url.indexOf('?')>=0?'&':'?')+'_='+Date.now();
   const r=await fetch(u,{cache:'no-store'});
@@ -181,18 +173,19 @@ async function fetchCSV(url){
 
 /* ---------- field mappers ---------- */
 const F={
-  kode:['kode sampel','kode','run id','id'], alias:['alias / kode lokal','alias','kode lokal'],
-  material:['material'], tipe:['tipe','type'], asal:['asal','origin'],
-  regdate:['tgl registrasi','tanggal registrasi','tanggal','regdate','regDate'], sumber:['sumber / asal lokasi','sumber','asal lokasi','source'],
-  induk:['induk (kode)','induk','kode induk','parent'], mAwal:['massa awal','massInitial'], mKini:['massa saat ini','massa kini','massCurrent'],
-  satuan:['satuan','unit'], kadar:['kadar air (%)','kadar air','moisture'], kondS:['kondisi sampel','cond'], cust:['custodian'],
-  lokasi:['lokasi simpan','lokasi','loc'], kondSimpan:['kondisi simpan','storecond'], status:['status'], catatan:['catatan','keterangan','notes'],
+  kode:['kode sampel','kode','run id'], alias:['alias / kode lokal','alias','kode lokal'],
+  material:['material'], tipe:['tipe'], asal:['asal'],
+  regdate:['tgl registrasi','tanggal registrasi','tanggal'], sumber:['sumber / asal lokasi','sumber','asal lokasi'],
+  induk:['induk (kode)','induk','kode induk'], mAwal:['massa awal'], mKini:['massa saat ini','massa kini'],
+  satuan:['satuan'], kadar:['kadar air (%)','kadar air'], kondS:['kondisi sampel'], cust:['custodian'],
+  lokasi:['lokasi simpan','lokasi'], kondSimpan:['kondisi simpan'], status:['status'], catatan:['catatan','keterangan'],
 };
-const FT={kode:['kode sampel','kode','sampleCode'],kategori:['kategori uji','kategori','category'],metode:['metode','method'],lab:['lab penguji','lab'],
-  analis:['analis','analyst'],mulai:['tgl mulai','dateStart'],selesai:['tgl selesai','dateEnd'],cert:['no. laporan/sertifikat','no. laporan','no laporan','sertifikat','certNo'],
-  status:['status'],hasil:['hasil ringkas','hasil','result'],berkas:['berkas / link','berkas','file','fileRef']};
-const FL={waktu:['tanggal-waktu','tanggal','waktu','datetime'],kode:['kode sampel','kode','sampleCode'],aksi:['aksi','action'],
-  dari:['dari lokasi','dari','fromLocation'],ke:['ke lokasi','ke','toLocation'],oleh:['oleh','person'],ket:['keterangan','note']};
+const FT={kode:['kode sampel','kode'],kategori:['kategori uji','kategori'],metode:['metode'],lab:['lab penguji','lab'],
+  process:['kode proses'],run:['run batch','kode run','kode run / batch'],params:['parameter','params','suhu/laju/waktu tahan'],
+  analis:['analis'],mulai:['tgl mulai'],selesai:['tgl selesai'],cert:['no. laporan/sertifikat','no. laporan','no laporan','sertifikat'],
+  status:['status'],hasil:['hasil ringkas','hasil'],berkas:['berkas / link','berkas','file']};
+const FL={waktu:['tanggal-waktu','tanggal','waktu'],kode:['kode sampel','kode'],aksi:['aksi'],
+  dari:['dari lokasi','dari'],ke:['ke lokasi','ke'],oleh:['oleh'],ket:['keterangan']};
 
 function pillFor(status,map){const m=map[status]||{c:'#7c8175',b:'#ece8df'};
   return status?`<span class="pill" style="color:${m.c};background:${m.b}"><span class="dot" style="background:${m.c}"></span>${esc(status)}</span>`:'';}
@@ -223,7 +216,7 @@ function demoData(){
 }
 
 /* ---------- RENDER: detail ---------- */
-function renderDetail(code){
+function renderDetail(code, scan={}){
   const row=DATA.induk.find(r=>pick(r,F.kode).trim().toUpperCase()===code.toUpperCase());
   if(!row) return renderNotFound(code);
   const matc=pick(row,F.material), tipec=pick(row,F.tipe);
@@ -238,6 +231,7 @@ function renderDetail(code){
   // pengujian & log terkait
   const tests=DATA.uji.filter(r=>pick(r,FT.kode).trim().toUpperCase()===code.toUpperCase());
   const moves=DATA.log.filter(r=>pick(r,FL.kode).trim().toUpperCase()===code.toUpperCase());
+  const hasScanProcess = !!(scan && (scan.pyro || scan.processCode || scan.runBatch || scan.temp || scan.rate || scan.hold || scan.parent));
 
   let h=`<div class="mb"><a href="${esc(linkFor(''))}">← Daftar sampel</a></div>`;
   h+=`<div class="card mb"><div class="card-b">
@@ -262,6 +256,20 @@ function renderDetail(code){
     ${pick(row,F.catatan)?`<div class="kv"><div class="k">Catatan</div><div class="v">${esc(pick(row,F.catatan))}</div></div>`:''}
     ${children.length?`<div class="kv"><div class="k">Turunan (${children.length})</div><div class="v">`+children.map(c=>`<a href="${esc(linkFor(pick(c,F.kode)))}" class="tag">${esc(pick(c,F.kode))}</a>`).join(' ')+`</div></div>`:''}
   </div></div>`;
+
+  if(hasScanProcess){
+    h+=`<div class="card mb"><div class="card-h"><h3>Hasil Scan QR Proses</h3><span class="micro">Pyrolysis</span></div><div class="card-b">
+      <div class="note">QR ini membuka detail sampel sekaligus membawa konteks proses pyrolysis agar reviewer dan operator tidak tertukar antar run.</div>
+      <div class="grid mt">
+        ${kv('Kode proses',scan.processCode?`<span class="mono">${esc(scan.processCode)}</span>`:'')}
+        ${kv('Run batch',scan.runBatch?`<span class="mono">${esc(scan.runBatch)}</span>`:'')}
+        ${kv('Induk proses',scan.parent?`<span class="mono">${esc(scan.parent)}</span>`:'')}
+        ${kv('Suhu',scan.temp?esc(scan.temp)+' °C':'')}
+        ${kv('Laju',scan.rate?esc(scan.rate)+' °C/min':'')}
+        ${kv('Waktu tahan',scan.hold?esc(scan.hold)+' min':'')}
+      </div>
+    </div></div>`;
+  }
 
   if(DATA.uji.length || tests.length){
     h+=`<div class="card mb"><div class="card-h"><h3>Pengujian</h3><span class="micro">${tests.length} entri</span></div>`;
@@ -326,16 +334,17 @@ function renderNotFound(code){
 
 /* ---------- RENDER: belum dikonfigurasi (panduan) ---------- */
 function renderSetup(){
-  app.innerHTML=`<div class="card"><div class="card-h"><h3>Belum terhubung ke database GitHub</h3></div><div class="card-b">
-    <div class="note">Halaman ini siap menampilkan data sampel, tetapi sumber datanya belum diisi. Hubungkan ke file JSON GitHub yang sama dengan aplikasi SITRAS utama, lalu unggah ulang berkas ini ke hosting Anda.</div>
+  app.innerHTML=`<div class="card"><div class="card-h"><h3>Belum terhubung ke Google Sheets</h3></div><div class="card-b">
+    <div class="note">Halaman ini siap menampilkan data sampel, tetapi sumber datanya belum diisi. Hubungkan ke Google Sheets dengan langkah berikut, lalu unggah ulang berkas ini ke hosting Anda.</div>
     <ol class="steps">
-      <li>Buat repo GitHub publik untuk database SITRAS, atau pakai repo yang sudah dipakai aplikasi utama.</li>
-      <li>Dari aplikasi SITRAS utama, isi panel <b>Database GitHub</b> lalu klik <b>Kirim ke GitHub</b> sampai file JSON pusat terbentuk.</li>
-      <li>Buka berkas ini dengan editor teks, lalu isi <span class="tag">githubOwner</span>, <span class="tag">githubRepo</span>, <span class="tag">githubBranch</span>, dan <span class="tag">githubPath</span> di bagian <b>CONFIG</b>. Kalau sudah punya URL raw JSON, cukup isi <span class="tag">databaseURL</span>.</li>
+      <li>Unggah berkas <b>Logbook-Ketertelusuran-Sampel.xlsx</b> ke Google Drive, lalu buka sebagai <b>Google Sheets</b>.</li>
+      <li>Menu <b>File → Share → Publish to web</b>.</li>
+      <li>Pilih sheet <b>Buku Induk</b>, format <b>Comma-separated values (.csv)</b>, klik <b>Publish</b>, lalu salin tautannya.</li>
+      <li>Buka berkas ini (<span class="tag">katalog-sampel.html</span>) dengan editor teks, tempel tautan tadi pada <span class="tag">bukuIndukCSV</span> di bagian <b>CONFIG</b>. (Opsional: ulangi untuk sheet <b>Pengujian</b> dan <b>Log Penyimpanan</b>.)</li>
       <li>Host berkas ini (mis. GitHub Pages / Cloudflare Pages). Jadikan namanya <span class="tag">index.html</span> bila ingin URL pendek.</li>
       <li>Di aplikasi SITRAS → tab <b>Panduan &amp; ISO</b> → <b>Pengaturan Tautan QR</b>, isi base-URL: <span class="tag">https://alamat-anda/?kode={kode}</span></li>
     </ol>
-    <div class="warn mt"><b>Catatan privasi:</b> repo/file JSON yang dibaca katalog ini sebaiknya publik agar bisa diakses tanpa login. Cocok untuk katalog sampel; jangan taruh data sensitif di dalamnya. Pengisian/penyuntingan tetap dilakukan di aplikasi SITRAS utama.</div>
+    <div class="warn mt"><b>Catatan privasi:</b> sheet yang dipublikasikan dapat dibaca publik (tanpa daftar/login). Cocok untuk katalog sampel; jangan taruh data sensitif di situ. Pengisian/penyuntingan tetap dilakukan di Google Sheets atau aplikasi SITRAS.</div>
     <div class="center mt"><a class="btn moss" href="?demo=1">Lihat contoh tampilan (data tengkawang)</a></div>
   </div></div>`;
 }
@@ -343,12 +352,11 @@ function renderSetup(){
 /* ---------- RENDER: error ---------- */
 function renderError(e){
   app.innerHTML=`<div class="card"><div class="card-b">
-    <div class="err"><b>Gagal memuat data dari database GitHub.</b><br>${esc(String(e&&e.message||e))}</div>
+    <div class="err"><b>Gagal memuat data dari Google Sheets.</b><br>${esc(String(e&&e.message||e))}</div>
     <ul class="steps">
-      <li>Pastikan repo bersifat <b>public</b> bila katalog ini diakses tanpa login.</li>
-      <li>Pastikan <span class="tag">githubOwner</span>, <span class="tag">githubRepo</span>, <span class="tag">githubBranch</span>, dan <span class="tag">githubPath</span> benar.</li>
-      <li>Pastikan file JSON sudah pernah dibuat oleh aplikasi SITRAS utama.</li>
-      <li>Coba buka URL raw JSON langsung di browser untuk memastikan dapat diakses.</li>
+      <li>Pastikan sheet sudah <b>Publish to web</b> (bukan sekadar dibagikan).</li>
+      <li>Pastikan tautan pada <span class="tag">CONFIG</span> adalah format <b>CSV</b>.</li>
+      <li>Coba buka tautan CSV langsung di browser untuk memastikan dapat diakses.</li>
     </ul>
     <div class="mt"><a class="btn" href="?demo=1">Lihat contoh tampilan</a></div>
   </div></div>`;
@@ -362,18 +370,96 @@ async function init(){
   const {demo,code}=params();
   try{
     if(demo){ demoData(); }
-    else if(hasGitHubSource()){
-      const db = await fetchGitHubDb();
-      DATA.induk = db.induk;
-      DATA.uji = db.uji;
-      DATA.log = db.log;
+    else if(CONFIG.bukuIndukCSV){
+      const tasks=[fetchCSV(CONFIG.bukuIndukCSV).then(d=>DATA.induk=d)];
+      if(CONFIG.pengujianCSV) tasks.push(fetchCSV(CONFIG.pengujianCSV).then(d=>DATA.uji=d).catch(()=>{}));
+      if(CONFIG.logCSV)       tasks.push(fetchCSV(CONFIG.logCSV).then(d=>DATA.log=d).catch(()=>{}));
+      await Promise.all(tasks);
     } else { renderSetup(); return; }
   }catch(e){ renderError(e); return; }
 
   if(code) renderDetail(code); else renderIndex();
   const when=new Date().toLocaleString('id-ID');
-  $('#ft').innerHTML=(demo?'Mode contoh (data tengkawang) · ':'Sumber data: GitHub JSON · ')+'diperbarui '+esc(when)+' · '+esc(CONFIG.labSub||'');
+  $('#ft').innerHTML=(demo?'Mode contoh (data tengkawang) · ':'Sumber data: Google Sheets · ')+'diperbarui '+esc(when)+' · '+esc(CONFIG.labSub||'');
 }
+/* ---------- override: detail scan QR proses ---------- */
+renderDetail = function(code, scan={}){
+  const activeScan = (scan && Object.keys(scan).length) ? scan : (params().process || {});
+  const row=DATA.induk.find(r=>pick(r,F.kode).trim().toUpperCase()===code.toUpperCase());
+  if(!row) return renderNotFound(code);
+  const matc=pick(row,F.material), tipec=pick(row,F.tipe);
+  const matTxt=matc?(MAT[matc]?matc+' - '+MAT[matc]:matc):'';
+  const tipeTxt=tipec?(TIPE[tipec]?tipec+' - '+TIPE[tipec]:tipec):'';
+  const induk=pick(row,F.induk);
+  const mAwal=pick(row,F.mAwal),mKini=pick(row,F.mKini),sat=pick(row,F.satuan);
+  const massa=(mAwal||mKini)?`${esc(mAwal||'?')} &rarr; <b>${esc(mKini||'?')}</b> ${esc(sat||'')}`:'';
+  const kadar=pick(row,F.kadar);
+  const children=DATA.induk.filter(r=>pick(r,F.induk).trim().toUpperCase()===code.toUpperCase());
+  const tests=DATA.uji.filter(r=>pick(r,FT.kode).trim().toUpperCase()===code.toUpperCase());
+  const moves=DATA.log.filter(r=>pick(r,FL.kode).trim().toUpperCase()===code.toUpperCase());
+  const hasScanProcess = !!(activeScan && (activeScan.pyro || activeScan.processCode || activeScan.runBatch || activeScan.temp || activeScan.rate || activeScan.hold || activeScan.parent));
+
+  let h=`<div class="mb"><a href="${esc(linkFor(''))}"><- Daftar sampel</a></div>`;
+  h+=`<div class="card mb"><div class="card-b">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="codebig">${esc(pick(row,F.kode))}</span>${pillFor(pick(row,F.status),STATUS)}
+    </div>
+    ${pick(row,F.alias)?`<div class="muted" style="margin-top:4px">Alias: <b>${esc(pick(row,F.alias))}</b></div>`:''}
+    <div class="grid mt">
+      ${kv('Material',esc(matTxt))}
+      ${kv('Tipe',esc(tipeTxt))}
+      ${kv('Asal',esc(pick(row,F.asal)))}
+      ${kv('Tanggal registrasi',esc(pick(row,F.regdate)))}
+      ${kv('Sumber / asal lokasi',esc(pick(row,F.sumber)))}
+      ${kv('Induk',induk?`<a href="${esc(linkFor(induk))}" class="mono">${esc(induk)}</a>`:'')}
+      ${kv('Massa (awal -> kini)',massa)}
+      ${kv('Kadar air',kadar?esc(kadar)+'%':'')}
+      ${kv('Kondisi sampel',esc(pick(row,F.kondS)))}
+      ${kv('Custodian',esc(pick(row,F.cust)))}
+      ${kv('Lokasi simpan',esc(pick(row,F.lokasi)))}
+      ${kv('Kondisi simpan',esc(pick(row,F.kondSimpan)))}
+    </div>
+    ${pick(row,F.catatan)?`<div class="kv"><div class="k">Catatan</div><div class="v">${esc(pick(row,F.catatan))}</div></div>`:''}
+    ${children.length?`<div class="kv"><div class="k">Turunan (${children.length})</div><div class="v">`+children.map(c=>`<a href="${esc(linkFor(pick(c,F.kode)))}" class="tag">${esc(pick(c,F.kode))}</a>`).join(' ')+`</div></div>`:''}
+  </div></div>`;
+
+  if(hasScanProcess){
+    h+=`<div class="card mb"><div class="card-h"><h3>Hasil Scan QR Proses</h3><span class="micro">Pyrolysis</span></div><div class="card-b">
+      <div class="note">QR ini membawa konteks proses pyrolysis agar reviewer dan operator tidak tertukar antar run.</div>
+      <div class="grid mt">
+        ${kv('Kode proses',activeScan.processCode?`<span class="mono">${esc(activeScan.processCode)}</span>`:'')}
+        ${kv('Run batch',activeScan.runBatch?`<span class="mono">${esc(activeScan.runBatch)}</span>`:'')}
+        ${kv('Induk proses',activeScan.parent?`<span class="mono">${esc(activeScan.parent)}</span>`:'')}
+        ${kv('Suhu',activeScan.temp?esc(activeScan.temp)+'  C':'')}
+        ${kv('Laju',activeScan.rate?esc(activeScan.rate)+'  C/min':'')}
+        ${kv('Waktu tahan',activeScan.hold?esc(activeScan.hold)+' min':'')}
+      </div>
+    </div></div>`;
+  }
+
+  if(DATA.uji.length || tests.length){
+    h+=`<div class="card mb"><div class="card-h"><h3>Pengujian</h3><span class="micro">${tests.length} entri</span></div>`;
+    if(tests.length){
+      h+=`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Kategori</th><th>Lab</th><th>No. Laporan</th><th>Status</th><th>Hasil ringkas</th></tr></thead><tbody>`;
+      tests.forEach(t=>{
+        const processLine = [pick(t,FT.process), pick(t,FT.run)].filter(Boolean).join(' · ');
+        const paramLine = pick(t,FT.params);
+        h+=`<tr><td><b>${esc(pick(t,FT.kategori))}</b><div class="muted small">${esc(pick(t,FT.metode))}</div>${processLine?`<div class="mono small">${esc(processLine)}</div>`:''}${paramLine?`<div class="muted small">${esc(paramLine)}</div>`:''}</td><td>${esc(pick(t,FT.lab))}</td><td class="mono">${esc(pick(t,FT.cert)||'-')}</td><td>${pillFor(pick(t,FT.status),TSTATUS)}</td><td>${esc(pick(t,FT.hasil))}</td></tr>`;
+      });
+      h+=`</tbody></table></div>`;
+    } else h+=`<div class="card-b muted small">Belum ada entri pengujian untuk kode ini.</div>`;
+    h+=`</div>`;
+  }
+  if(DATA.log.length || moves.length){
+    if(moves.length){
+      h+=`<div class="card mb"><div class="card-h"><h3>Riwayat penyimpanan</h3><span class="micro">${moves.length} catatan</span></div>`;
+      h+=`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Waktu</th><th>Aksi</th><th>Dari</th><th>Ke</th><th>Oleh</th><th>Keterangan</th></tr></thead><tbody>`;
+      moves.forEach(m=>{h+=`<tr><td class="mono small">${esc(pick(m,FL.waktu))}</td><td>${esc(pick(m,FL.aksi))}</td><td>${esc(pick(m,FL.dari)||'-')}</td><td>${esc(pick(m,FL.ke)||'-')}</td><td>${esc(pick(m,FL.oleh))}</td><td>${esc(pick(m,FL.ket))}</td></tr>`;});
+      h+=`</tbody></table></div></div>`;
+    }
+  }
+  app.innerHTML=h;
+};
 document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>

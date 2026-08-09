@@ -1,0 +1,531 @@
+%% ============================================================
+% RUN_RSM_DARI_FILE_AUDIT_ASLI_NATSIR_FIX.m
+% Analisis RSM FC-CCD dari file Excel asli
+% Kompatibel MATLAB Online
+%
+% Input:
+% TABEL_PENGAMBILAN_DATA_AUDIT(1).xlsx
+% Sheet: Data_Per_Run
+%
+% Variabel tesis:
+% X1 = Suhu pirolisis
+% X2 = Holding time
+% X3 = Heating rate
+%
+% Respon utama:
+% Yield bio-oil total = CO1 + CO2
+%
+% Muhammad Natsir - AKHDAR80 / Shorea stenoptera
+%% ============================================================
+
+clear; clc; close all;
+
+%% 1. PILIH FILE EXCEL ASLI
+[fileName, filePath] = uigetfile({'*.xlsx;*.xls','Excel Files'}, ...
+    'Pilih file TABEL_PENGAMBILAN_DATA_AUDIT(1).xlsx');
+
+if isequal(fileName,0)
+    error('File belum dipilih.');
+end
+
+fileXlsx = fullfile(filePath, fileName);
+
+outDir = fullfile(filePath, 'HASIL_MATLAB_RSM_FIX');
+if ~exist(outDir, 'dir')
+    mkdir(outDir);
+end
+
+fprintf('\nFile terbaca:\n%s\n', fileXlsx);
+
+%% 2. BACA SHEET DATA_PER_RUN
+opts = detectImportOptions(fileXlsx, ...
+    'Sheet', 'Data_Per_Run', ...
+    'Range', 'A3:AF200', ...
+    'VariableNamingRule', 'preserve');
+
+Traw = readtable(fileXlsx, opts);
+Traw.Properties.VariableNames = matlab.lang.makeValidName(Traw.Properties.VariableNames);
+
+disp('======================================================');
+disp('KOLOM TERBACA DARI SHEET Data_Per_Run');
+disp('======================================================');
+disp(Traw.Properties.VariableNames');
+
+%% 3. DETEKSI KOLOM UTAMA
+cRunID       = ambilKolom(Traw, {'RunID','Run_ID','Run'});
+cRunBatch    = ambilKolom(Traw, {'RunBatch','Run_Batch','Batch'});
+cStatus      = ambilKolom(Traw, {'Status_Data','StatusData','Status'});
+cSuhu        = ambilKolom(Traw, {'Suhu_C','Suhu','Temperature_C','Temp_C'});
+cHR          = ambilKolom(Traw, {'HR_C_min','HR','HeatingRate','Heating_Rate','HeatingRate_C_min'});
+cHT          = ambilKolom(Traw, {'HT_min','HT','HoldingTime','Holding_Time','Holding_min'});
+cUmpan       = ambilKolom(Traw, {'Massa_Umpan_g','MassaUmpan_g','Umpan_g','Massa_Umpan'});
+
+cCO1Kosong   = ambilKolom(Traw, {'BO_C01_Wadah_Kosong_g','BO_CO1_Wadah_Kosong_g','C01_Wadah_Kosong_g','CO1_Wadah_Kosong_g'});
+cCO1Isi      = ambilKolom(Traw, {'BO_C01_Wadah_Isi_g','BO_CO1_Wadah_Isi_g','C01_Wadah_Isi_g','CO1_Wadah_Isi_g'});
+cCO2Kosong   = ambilKolom(Traw, {'BO_C02_Wadah_Kosong_g','BO_CO2_Wadah_Kosong_g','C02_Wadah_Kosong_g','CO2_Wadah_Kosong_g'});
+cCO2Isi      = ambilKolom(Traw, {'BO_C02_Wadah_Isi_g','BO_CO2_Wadah_Isi_g','C02_Wadah_Isi_g','CO2_Wadah_Isi_g'});
+
+cCharKosong  = ambilKolom(Traw, {'Char_Wadah_Kosong_g','Biochar_Wadah_Kosong_g','BC_Wadah_Kosong_g'});
+cCharIsi     = ambilKolom(Traw, {'Char_Wadah_Isi_g','Biochar_Wadah_Isi_g','BC_Wadah_Isi_g'});
+
+%% 4. BUANG BARIS KOSONG
+T = Traw;
+T = T(~ismissing(T.(cRunID)), :);
+
+%% 5. HITUNG ULANG MASSA DAN YIELD
+T.BO_CO1_g = T.(cCO1Isi) - T.(cCO1Kosong);
+T.BO_CO2_g = T.(cCO2Isi) - T.(cCO2Kosong);
+T.BO_Total_g = T.BO_CO1_g + T.BO_CO2_g;
+
+T.Yield_BO_CO1_pct = T.BO_CO1_g ./ T.(cUmpan) .* 100;
+T.Yield_BO_CO2_pct = T.BO_CO2_g ./ T.(cUmpan) .* 100;
+T.Yield_BO_Total_pct = T.BO_Total_g ./ T.(cUmpan) .* 100;
+
+T.Biochar_g = T.(cCharIsi) - T.(cCharKosong);
+T.Yield_Biochar_pct = T.Biochar_g ./ T.(cUmpan) .* 100;
+
+T.Gas_g = T.(cUmpan) - T.BO_Total_g - T.Biochar_g;
+T.Yield_Gas_pct = T.Gas_g ./ T.(cUmpan) .* 100;
+
+T.Neraca_Massa_pct = T.Yield_BO_Total_pct + T.Yield_Biochar_pct + T.Yield_Gas_pct;
+
+%% 6. FILTER DOE 40 RUN DUPLO
+RunBatchStr = string(T.(cRunBatch));
+StatusStr   = string(T.(cStatus));
+
+isDOE = startsWith(RunBatchStr, "R") & ~strcmpi(RunBatchStr, "ROPT");
+isValid = strcmpi(StatusStr, "Valid");
+
+DOE = T(isDOE & isValid, :);
+
+runNum = str2double(erase(string(DOE.(cRunBatch)), "R"));
+DOE = DOE(runNum >= 1 & runNum <= 20, :);
+
+fprintf('\nJumlah data DOE valid terbaca = %d data\n', height(DOE));
+
+%% 7. KODE FAKTOR SESUAI TESIS
+% X1 = Suhu
+% X2 = Holding time
+% X3 = Heating rate
+
+DOE.X1 = (DOE.(cSuhu) - 500) ./ 50;
+DOE.X2 = (DOE.(cHT)   - 60)  ./ 30;
+DOE.X3 = (DOE.(cHR)   - 10)  ./ 5;
+
+DOE.X1_2 = DOE.X1.^2;
+DOE.X2_2 = DOE.X2.^2;
+DOE.X3_2 = DOE.X3.^2;
+
+DOE.X1X2 = DOE.X1 .* DOE.X2;
+DOE.X1X3 = DOE.X1 .* DOE.X3;
+DOE.X2X3 = DOE.X2 .* DOE.X3;
+
+DOE.Y = DOE.Yield_BO_Total_pct;
+
+%% 8. MODEL KUADRATIK PENUH RSM
+formula = 'Y ~ X1 + X2 + X3 + X1_2 + X2_2 + X3_2 + X1X2 + X1X3 + X2X3';
+mdl = fitlm(DOE, formula);
+
+disp('======================================================');
+disp('MODEL RSM KUADRATIK PENUH - YIELD BIO-OIL TOTAL');
+disp('======================================================');
+disp(mdl);
+
+%% 9. STATISTIK MODEL MANUAL - FIX MATLAB ONLINE
+y     = DOE.Y;
+yhat  = mdl.Fitted;
+resid = mdl.Residuals.Raw;
+
+n = length(y);
+
+% Design matrix manual agar tidak error di MATLAB Online
+Xmat = [
+    ones(n,1), ...
+    DOE.X1, ...
+    DOE.X2, ...
+    DOE.X3, ...
+    DOE.X1_2, ...
+    DOE.X2_2, ...
+    DOE.X3_2, ...
+    DOE.X1X2, ...
+    DOE.X1X3, ...
+    DOE.X2X3 ...
+];
+
+p = rank(Xmat);
+
+SSE = sum(resid.^2);
+SST = sum((y - mean(y)).^2);
+SSR = SST - SSE;
+
+dfModel = p - 1;
+dfError = n - p;
+dfTotal = n - 1;
+
+MSModel = SSR / dfModel;
+MSError = SSE / dfError;
+
+FModel = MSModel / MSError;
+pModel = 1 - fcdf(FModel, dfModel, dfError);
+
+R2 = 1 - SSE/SST;
+AdjR2 = 1 - (SSE/dfError) / (SST/dfTotal);
+
+% Hat matrix untuk PRESS dan Predicted R-square
+H = Xmat * pinv(Xmat' * Xmat) * Xmat';
+h = diag(H);
+h(h >= 0.9999) = 0.9999;
+
+PRESS = sum((resid ./ (1 - h)).^2);
+PredR2 = 1 - PRESS/SST;
+
+RMSE = sqrt(MSError);
+CV_model_pct = 100 * RMSE / mean(y);
+AdeqPrecision_pendekatan = (max(yhat) - min(yhat)) / RMSE;
+
+%% 10. LACK OF FIT BERDASARKAN DUPLO TITIK DESAIN
+[G, idX1, idX2, idX3] = findgroups(DOE.X1, DOE.X2, DOE.X3);
+jumlahGrup = max(G);
+
+SSEpure_vec = splitapply(@(z) sum((z - mean(z)).^2), y, G);
+SSEpure = sum(SSEpure_vec);
+
+dfPure = n - jumlahGrup;
+SSElof = SSE - SSEpure;
+dfLOF = jumlahGrup - p;
+
+if dfLOF > 0 && dfPure > 0 && SSEpure > 0
+    MSlof = SSElof / dfLOF;
+    MSpure = SSEpure / dfPure;
+    Flof = MSlof / MSpure;
+    pLOF = 1 - fcdf(Flof, dfLOF, dfPure);
+else
+    MSlof = NaN;
+    MSpure = NaN;
+    Flof = NaN;
+    pLOF = NaN;
+end
+
+%% 11. TABEL PERHITUNGAN 1-8
+Stat = table;
+Stat.No = (1:8)';
+Stat.Parameter = {
+    'p-value model';
+    'p-value lack of fit';
+    'R-square';
+    'Adjusted R-square';
+    'Predicted R-square';
+    'RMSE';
+    'CV model (%)';
+    'Adeq precision pendekatan'
+};
+
+Stat.Nilai = [
+    pModel;
+    pLOF;
+    R2;
+    AdjR2;
+    PredR2;
+    RMSE;
+    CV_model_pct;
+    AdeqPrecision_pendekatan
+];
+
+disp('======================================================');
+disp('PERHITUNGAN 1-8 RSM');
+disp('======================================================');
+disp(Stat);
+
+%% 12. ANOVA RINGKAS
+ANOVA_Ringkas = table;
+ANOVA_Ringkas.Sumber = {'Model'; 'Residual/Error'; 'Lack of Fit'; 'Pure Error'; 'Total'};
+ANOVA_Ringkas.SS = [SSR; SSE; SSElof; SSEpure; SST];
+ANOVA_Ringkas.DF = [dfModel; dfError; dfLOF; dfPure; dfTotal];
+ANOVA_Ringkas.MS = [MSModel; MSError; MSlof; MSpure; NaN];
+ANOVA_Ringkas.F_value = [FModel; NaN; Flof; NaN; NaN];
+ANOVA_Ringkas.p_value = [pModel; NaN; pLOF; NaN; NaN];
+
+disp('======================================================');
+disp('ANOVA RINGKAS');
+disp('======================================================');
+disp(ANOVA_Ringkas);
+
+%% 13. KOEFISIEN MODEL
+Koef = mdl.Coefficients;
+
+disp('======================================================');
+disp('KOEFISIEN MODEL RSM');
+disp('======================================================');
+disp(Koef);
+
+%% 14. RINGKASAN PER RUN R01-R20
+RingkasRun = groupsummary(DOE, cRunBatch, "mean", ...
+    {cSuhu, cHT, cHR, ...
+     'BO_CO1_g','BO_CO2_g','BO_Total_g', ...
+     'Yield_BO_CO1_pct','Yield_BO_CO2_pct','Yield_BO_Total_pct', ...
+     'Biochar_g','Yield_Biochar_pct', ...
+     'Gas_g','Yield_Gas_pct'});
+
+RingkasRun.Properties.VariableNames = matlab.lang.makeValidName(RingkasRun.Properties.VariableNames);
+
+%% 15. ROPT TRIPLO
+ROPT = T(strcmpi(string(T.(cRunBatch)), "ROPT"), :);
+
+if height(ROPT) > 0
+    ROPT_Stat = table;
+    ROPT_Stat.Parameter = {
+        'n ROPT';
+        'Mean CO1/E101 (g)';
+        'Std CO1/E101 (g)';
+        'CV CO1/E101 (%)';
+        'Mean CO2/E102 (g)';
+        'Std CO2/E102 (g)';
+        'CV CO2/E102 (%)';
+        'Mean total bio-oil (g)';
+        'Std total bio-oil (g)';
+        'CV total bio-oil (%)';
+        'Mean yield bio-oil (%)';
+        'Std yield bio-oil (%)';
+        'CV yield bio-oil (%)';
+        'Mean biochar (g)';
+        'Std biochar (g)';
+        'CV biochar (%)';
+        'Mean gas by difference (%)'
+    };
+
+    ROPT_Stat.Nilai = [
+        height(ROPT);
+        mean(ROPT.BO_CO1_g, 'omitnan');
+        std(ROPT.BO_CO1_g, 'omitnan');
+        100*std(ROPT.BO_CO1_g, 'omitnan')/mean(ROPT.BO_CO1_g, 'omitnan');
+        mean(ROPT.BO_CO2_g, 'omitnan');
+        std(ROPT.BO_CO2_g, 'omitnan');
+        100*std(ROPT.BO_CO2_g, 'omitnan')/mean(ROPT.BO_CO2_g, 'omitnan');
+        mean(ROPT.BO_Total_g, 'omitnan');
+        std(ROPT.BO_Total_g, 'omitnan');
+        100*std(ROPT.BO_Total_g, 'omitnan')/mean(ROPT.BO_Total_g, 'omitnan');
+        mean(ROPT.Yield_BO_Total_pct, 'omitnan');
+        std(ROPT.Yield_BO_Total_pct, 'omitnan');
+        100*std(ROPT.Yield_BO_Total_pct, 'omitnan')/mean(ROPT.Yield_BO_Total_pct, 'omitnan');
+        mean(ROPT.Biochar_g, 'omitnan');
+        std(ROPT.Biochar_g, 'omitnan');
+        100*std(ROPT.Biochar_g, 'omitnan')/mean(ROPT.Biochar_g, 'omitnan');
+        mean(ROPT.Yield_Gas_pct, 'omitnan')
+    ];
+
+    disp('======================================================');
+    disp('STATISTIK ROPT TRIPLO');
+    disp('======================================================');
+    disp(ROPT_Stat);
+else
+    disp('Data ROPT tidak ditemukan.');
+end
+
+%% 16. RESIDUAL DATA
+ResidualData = table;
+ResidualData.RunID = DOE.(cRunID);
+ResidualData.RunBatch = DOE.(cRunBatch);
+ResidualData.Suhu_C = DOE.(cSuhu);
+ResidualData.HT_min = DOE.(cHT);
+ResidualData.HR_C_min = DOE.(cHR);
+ResidualData.Y_actual = y;
+ResidualData.Y_predicted = yhat;
+ResidualData.Residual = resid;
+ResidualData.StdResidual = mdl.Residuals.Standardized;
+ResidualData.Leverage = h;
+
+%% 17. OPTIMASI GRID DALAM BATAS FC-CCD
+gridN = 81;
+x1v = linspace(-1, 1, gridN);
+x2v = linspace(-1, 1, gridN);
+x3v = linspace(-1, 1, gridN);
+
+[X1g, X2g, X3g] = ndgrid(x1v, x2v, x3v);
+
+Tgrid = table;
+Tgrid.X1 = X1g(:);
+Tgrid.X2 = X2g(:);
+Tgrid.X3 = X3g(:);
+Tgrid.X1_2 = Tgrid.X1.^2;
+Tgrid.X2_2 = Tgrid.X2.^2;
+Tgrid.X3_2 = Tgrid.X3.^2;
+Tgrid.X1X2 = Tgrid.X1 .* Tgrid.X2;
+Tgrid.X1X3 = Tgrid.X1 .* Tgrid.X3;
+Tgrid.X2X3 = Tgrid.X2 .* Tgrid.X3;
+
+Ygrid = predict(mdl, Tgrid);
+[Ymaks, idxMax] = max(Ygrid);
+
+Optimum = table;
+Optimum.Suhu_C = 500 + 50*Tgrid.X1(idxMax);
+Optimum.HT_min = 60 + 30*Tgrid.X2(idxMax);
+Optimum.HR_C_min = 10 + 5*Tgrid.X3(idxMax);
+Optimum.Yield_prediksi_pct = Ymaks;
+
+disp('======================================================');
+disp('OPTIMUM PREDIKSI MODEL GRID');
+disp('======================================================');
+disp(Optimum);
+
+%% 18. SIMPAN OUTPUT CSV
+writetable(T, fullfile(outDir, '01_DATA_ASLI_DIHITUNG_ULANG_SEMUA_RUN.csv'));
+writetable(DOE, fullfile(outDir, '02_DATA_RSM_40RUN_DUPLO_DARI_FILE_ASLI.csv'));
+writetable(RingkasRun, fullfile(outDir, '03_RINGKASAN_RATA_RATA_R01_R20.csv'));
+writetable(Stat, fullfile(outDir, '04_PERHITUNGAN_1_8_RSM.csv'));
+writetable(ANOVA_Ringkas, fullfile(outDir, '05_ANOVA_LACK_OF_FIT.csv'));
+writetable(Koef, fullfile(outDir, '06_KOEFISIEN_MODEL_RSM.csv'), 'WriteRowNames', true);
+writetable(ResidualData, fullfile(outDir, '07_RESIDUAL_DATA.csv'));
+writetable(Optimum, fullfile(outDir, '08_OPTIMUM_MODEL_GRID.csv'));
+
+if exist('ROPT_Stat','var')
+    writetable(ROPT, fullfile(outDir, '09_DATA_ROPT_TRIPLO_DIHITUNG_ULANG.csv'));
+    writetable(ROPT_Stat, fullfile(outDir, '10_STATISTIK_ROPT_TRIPLO.csv'));
+end
+
+%% 19. SIMPAN OUTPUT EXCEL
+fileOutExcel = fullfile(outDir, 'HASIL_ANALISIS_RSM_DARI_FILE_AUDIT_ASLI_FIX.xlsx');
+
+writetable(T, fileOutExcel, 'Sheet', 'Data_Hitung_Ulang');
+writetable(DOE, fileOutExcel, 'Sheet', 'RSM_40Run_Duplo');
+writetable(RingkasRun, fileOutExcel, 'Sheet', 'Ringkasan_R01_R20');
+writetable(Stat, fileOutExcel, 'Sheet', 'Perhitungan_1_8');
+writetable(ANOVA_Ringkas, fileOutExcel, 'Sheet', 'ANOVA_LOF');
+writetable(Koef, fileOutExcel, 'Sheet', 'Koefisien', 'WriteRowNames', true);
+writetable(ResidualData, fileOutExcel, 'Sheet', 'Residual');
+writetable(Optimum, fileOutExcel, 'Sheet', 'Optimum_Model');
+
+if exist('ROPT_Stat','var')
+    writetable(ROPT, fileOutExcel, 'Sheet', 'ROPT_Triplo');
+    writetable(ROPT_Stat, fileOutExcel, 'Sheet', 'ROPT_Stat');
+end
+
+%% 20. GRAFIK PREDICTED VS ACTUAL
+fig1 = figure('Name','Predicted vs Actual','Color','w');
+scatter(y, yhat, 60, 'filled');
+hold on;
+minY = min([y; yhat]);
+maxY = max([y; yhat]);
+plot([minY maxY], [minY maxY], 'k--', 'LineWidth', 1.5);
+grid on;
+xlabel('Yield bio-oil aktual (%)');
+ylabel('Yield bio-oil prediksi (%)');
+title('Predicted vs Actual - RSM FC-CCD');
+saveas(fig1, fullfile(outDir, 'Gambar_01_Predicted_vs_Actual.png'));
+
+%% 21. GRAFIK RESIDUAL VS PREDICTED
+fig2 = figure('Name','Residual vs Predicted','Color','w');
+scatter(yhat, resid, 60, 'filled');
+hold on;
+yline(0, 'k--', 'LineWidth', 1.5);
+grid on;
+xlabel('Yield prediksi (%)');
+ylabel('Residual');
+title('Residual vs Predicted');
+saveas(fig2, fullfile(outDir, 'Gambar_02_Residual_vs_Predicted.png'));
+
+%% 22. NORMAL PROBABILITY PLOT RESIDUAL
+fig3 = figure('Name','Normal Probability Residual','Color','w');
+qqplot(resid);
+grid on;
+title('Normal Probability Plot Residual');
+saveas(fig3, fullfile(outDir, 'Gambar_03_Normal_Probability_Residual.png'));
+
+%% 23. CONTOUR SUHU VS HR PADA HT = 30 MENIT
+% HT 30 menit = X2 -1
+[x1mesh, x3mesh] = meshgrid(linspace(-1,1,100), linspace(-1,1,100));
+x2fix = -1 * ones(size(x1mesh));
+
+Tcont = table;
+Tcont.X1 = x1mesh(:);
+Tcont.X2 = x2fix(:);
+Tcont.X3 = x3mesh(:);
+Tcont.X1_2 = Tcont.X1.^2;
+Tcont.X2_2 = Tcont.X2.^2;
+Tcont.X3_2 = Tcont.X3.^2;
+Tcont.X1X2 = Tcont.X1 .* Tcont.X2;
+Tcont.X1X3 = Tcont.X1 .* Tcont.X3;
+Tcont.X2X3 = Tcont.X2 .* Tcont.X3;
+
+Ycont = reshape(predict(mdl, Tcont), size(x1mesh));
+
+SuhuMesh = 500 + 50*x1mesh;
+HRMesh = 10 + 5*x3mesh;
+
+fig4 = figure('Name','Contour Suhu vs HR HT30','Color','w');
+contourf(SuhuMesh, HRMesh, Ycont, 20);
+colorbar;
+xlabel('Suhu pirolisis (°C)');
+ylabel('Heating rate (°C/min)');
+title('Contour Yield Bio-oil pada HT 30 menit');
+grid on;
+saveas(fig4, fullfile(outDir, 'Gambar_04_Contour_Suhu_vs_HR_HT30.png'));
+
+%% 24. SURFACE SUHU VS HR PADA HT = 30 MENIT
+fig5 = figure('Name','Surface Suhu vs HR HT30','Color','w');
+surf(SuhuMesh, HRMesh, Ycont);
+shading interp;
+colorbar;
+xlabel('Suhu pirolisis (°C)');
+ylabel('Heating rate (°C/min)');
+zlabel('Yield bio-oil prediksi (%)');
+title('Response Surface Yield Bio-oil pada HT 30 menit');
+grid on;
+saveas(fig5, fullfile(outDir, 'Gambar_05_Surface_Suhu_vs_HR_HT30.png'));
+
+%% 25. CETAK HASIL AKHIR
+fprintf('\n======================================================\n');
+fprintf('HASIL UTAMA DARI FILE AUDIT ASLI - MATLAB ONLINE FIX\n');
+fprintf('======================================================\n');
+fprintf('Jumlah DOE valid              = %d data\n', height(DOE));
+fprintf('p-value model                 = %.6f\n', pModel);
+fprintf('p-value lack of fit            = %.6f\n', pLOF);
+fprintf('R-square                       = %.4f\n', R2);
+fprintf('Adjusted R-square              = %.4f\n', AdjR2);
+fprintf('Predicted R-square             = %.4f\n', PredR2);
+fprintf('RMSE                           = %.4f\n', RMSE);
+fprintf('CV model                       = %.2f %%\n', CV_model_pct);
+fprintf('Adeq precision pendekatan      = %.4f\n', AdeqPrecision_pendekatan);
+fprintf('Optimum prediksi suhu          = %.1f °C\n', Optimum.Suhu_C);
+fprintf('Optimum prediksi HT            = %.1f menit\n', Optimum.HT_min);
+fprintf('Optimum prediksi HR            = %.1f °C/min\n', Optimum.HR_C_min);
+fprintf('Yield prediksi optimum         = %.3f %%\n', Optimum.Yield_prediksi_pct);
+
+if exist('ROPT_Stat','var')
+    idxMean = strcmp(ROPT_Stat.Parameter,'Mean yield bio-oil (%)');
+    idxStd  = strcmp(ROPT_Stat.Parameter,'Std yield bio-oil (%)');
+    idxCV   = strcmp(ROPT_Stat.Parameter,'CV yield bio-oil (%)');
+
+    fprintf('\nROPT triplo:\n');
+    fprintf('Mean yield ROPT                = %.3f %%\n', ROPT_Stat.Nilai(idxMean));
+    fprintf('Std yield ROPT                 = %.3f %%\n', ROPT_Stat.Nilai(idxStd));
+    fprintf('CV yield ROPT                  = %.3f %%\n', ROPT_Stat.Nilai(idxCV));
+end
+
+fprintf('\nOutput tersimpan di folder:\n%s\n', outDir);
+fprintf('======================================================\n');
+
+%% ============================================================
+% FUNGSI LOKAL
+%% ============================================================
+function namaKolom = ambilKolom(T, kandidat)
+    daftar = T.Properties.VariableNames;
+    namaKolom = '';
+
+    for i = 1:numel(kandidat)
+        idx = strcmpi(daftar, kandidat{i});
+        if any(idx)
+            namaKolom = daftar{find(idx,1)};
+            return;
+        end
+    end
+
+    for i = 1:numel(kandidat)
+        idx = contains(lower(daftar), lower(kandidat{i}));
+        if any(idx)
+            namaKolom = daftar{find(idx,1)};
+            return;
+        end
+    end
+
+    error('Kolom tidak ditemukan. Kandidat: %s', strjoin(kandidat, ', '));
+end

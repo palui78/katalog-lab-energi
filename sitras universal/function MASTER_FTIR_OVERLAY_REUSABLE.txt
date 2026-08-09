@@ -1,0 +1,791 @@
+function MASTER_FTIR_OVERLAY_REUSABLE
+% MASTER_FTIR_OVERLAY_REUSABLE
+% Membaca data FTIR-ATR dari Excel/CSV/TXT, mendeteksi pasangan kolom
+% bilangan gelombang--sinyal, lalu membuat:
+%   1) overlay rinci dengan wilayah spektral, nomor puncak, dan keterangan;
+%   2) gambar multipanel berisi overlay keseluruhan dan tiga panel pembesaran;
+%   3) tabel data terproses dan tabel penetapan puncak.
+%
+% CARA MENJALANKAN
+%   Simpan file ini pada folder kerja MATLAB, lalu jalankan:
+%       MASTER_FTIR_OVERLAY_REUSABLE
+%
+% CATATAN ILMIAH
+%   - Istilah yang tepat untuk label FTIR adalah gugus fungsi, jenis vibrasi,
+%     dan komponen terkait; bukan "unsur".
+%   - Penetapan pita bersifat korelatif dan harus dikonfirmasi dengan
+%     literatur yang sesuai dengan bahan yang sedang diteliti.
+%   - Kurva yang ditampilkan tidak dihaluskan (no smoothing).
+%
+% ACUAN TAMPILAN DAN KORELASI PITA
+%   Salim et al. (2021), "Chemical functional groups of extractives,
+%   cellulose and lignin extracted from native Leucaena leucocephala bark",
+%   Wood Science and Technology 55:295-313.
+%   https://doi.org/10.1007/s00226-020-01258-2
+%
+% KOMPATIBILITAS
+%   Disarankan MATLAB R2020a atau lebih baru (readcell, tiledlayout,
+%   exportgraphics, dan fungsi lokal dalam satu berkas).
+
+clc;
+close all;
+
+%% ========================================================================
+%  KONFIGURASI UTAMA -- EDIT BAGIAN INI UNTUK PENELITIAN BERIKUTNYA
+%  ========================================================================
+cfg.filePath = "";             % Kosong = pilih file melalui jendela dialog.
+cfg.sheet = "";                % Kosong = lembar pertama pada file Excel.
+cfg.materialName = "Serbuk biomassa limbah Ulin dan Lindi";
+cfg.figureTitle = "Spektrum FTIR-ATR";
+
+% Pilihan jenis sinyal: "auto", "fraction_transmittance",
+% "percent_transmittance", atau "absorbance".
+cfg.signalType = "auto";
+
+% Pilihan normalisasi: "max", "none", atau "minmax".
+% "max" mengubah puncak transmitansi tertinggi tiap spektrum menjadi 100%.
+cfg.normalization = "max";
+
+cfg.xLimits = [4000 500];      % Urutan khas FTIR: tinggi ke rendah.
+cfg.minDataPoints = 50;
+cfg.lineWidth = 1.35;
+cfg.outputDpi = 600;
+cfg.makeDetailedFigure = true;
+cfg.makeMultipanelFigure = true;
+cfg.saveProcessedTable = true;
+cfg.showRegionShading = true;
+cfg.showPeakMarkers = true;
+
+% Palet yang tetap terbaca saat dicetak dan ramah buta warna.
+cfg.lineColors = [ ...
+    0.0000 0.4470 0.7410
+    0.8500 0.3250 0.0980
+    0.4660 0.6740 0.1880
+    0.4940 0.1840 0.5560
+    0.9290 0.6940 0.1250
+    0.3010 0.7450 0.9330
+    0.6350 0.0780 0.1840];
+
+% Warna transparan untuk wilayah spektral.
+cfg.regionColors = [ ...
+    0.42 0.68 0.84
+    0.93 0.65 0.40
+    0.78 0.49 0.68
+    0.52 0.72 0.50
+    0.87 0.76 0.37
+    0.56 0.63 0.82
+    0.84 0.53 0.47];
+
+% Tabel ini adalah pondasi untuk bahan lignoselulosa pada penelitian saat
+% ini. Ganti rentang/keterangan apabila bahan penelitian berikutnya berbeda.
+cfg.regions = defaultSpectralRegions();
+
+% Tabel puncak penelitian saat ini. Untuk data baru, edit tabel pada fungsi
+% defaultPeakAssignments() di bagian bawah file. Jangan menetapkan senyawa
+% hanya dari posisi pita tanpa pembandingan literatur.
+cfg.peaks = defaultPeakAssignments();
+
+%% Memilih dan membaca file
+inputFile = resolveInputFile(cfg.filePath);
+if inputFile == ""
+    fprintf("Proses dibatalkan oleh pengguna.\n");
+    return;
+end
+
+[raw, sheetUsed] = readSpectralFile(inputFile, cfg.sheet);
+numericRaw = cellsToNumeric(raw);
+dataStartRow = findDataStartRow(numericRaw, cfg.minDataPoints);
+pairs = detectSpectrumPairs(numericRaw(dataStartRow:end, :), ...
+    cfg.minDataPoints);
+
+if isempty(pairs)
+    error("Tidak ditemukan pasangan kolom spektrum. Susun data sebagai " + ...
+        "X1-Y1, X2-Y2, dan seterusnya; X = bilangan gelombang, " + ...
+        "Y = transmitansi/absorbansi.");
+end
+
+[spectra, sampleNames] = extractSpectra(raw, numericRaw, dataStartRow, ...
+    pairs, cfg.minDataPoints);
+[waveNumber, signalMatrix] = placeOnCommonGrid(spectra);
+
+if isempty(waveNumber) || size(signalMatrix, 1) < cfg.minDataPoints
+    error("Rentang tumpang-tindih antar-spektrum tidak mencukupi.");
+end
+
+[processedSignal, signalType, yLabel] = processSignals(signalMatrix, cfg);
+
+%% Folder keluaran
+inputFolder = fileparts(inputFile);
+timeStamp = char(datetime("now", "Format", "yyyyMMdd_HHmmss"));
+outputFolder = fullfile(inputFolder, "FTIR_OUTPUT_" + string(timeStamp));
+if ~exist(outputFolder, "dir")
+    mkdir(outputFolder);
+end
+
+%% Menyimpan data terproses
+if cfg.saveProcessedTable
+    processedTable = table(waveNumber, ...
+        'VariableNames', {'Wavenumber_cm_1'});
+    validNames = matlab.lang.makeValidName(cellstr(sampleNames));
+    validNames = matlab.lang.makeUniqueStrings(validNames);
+    for k = 1:numel(sampleNames)
+        processedTable.(validNames{k}) = processedSignal(:, k);
+    end
+    writetable(processedTable, ...
+        fullfile(outputFolder, "Data_FTIR_Terproses.xlsx"));
+
+    peakOutput = makePeakOutput(cfg.peaks, waveNumber, processedSignal, ...
+        sampleNames);
+    writetable(peakOutput, ...
+        fullfile(outputFolder, "Ringkasan_Puncak_FTIR.xlsx"));
+end
+
+%% Gambar 1: overlay rinci
+if cfg.makeDetailedFigure
+    fig1 = makeDetailedFigure(waveNumber, processedSignal, sampleNames, ...
+        cfg, yLabel);
+    saveFigureSet(fig1, outputFolder, ...
+        "Gambar_1_Overlay_FTIR_Detail", cfg.outputDpi);
+end
+
+%% Gambar 2: overlay multipanel
+if cfg.makeMultipanelFigure
+    fig2 = makeMultipanelFigure(waveNumber, processedSignal, sampleNames, ...
+        cfg, yLabel);
+    saveFigureSet(fig2, outputFolder, ...
+        "Gambar_2_Overlay_FTIR_Multipanel", cfg.outputDpi);
+end
+
+%% Ringkasan proses
+fprintf("\nSelesai.\n");
+fprintf("File sumber  : %s\n", inputFile);
+if sheetUsed ~= ""
+    fprintf("Lembar data  : %s\n", sheetUsed);
+end
+fprintf("Jenis sinyal : %s\n", signalType);
+fprintf("Normalisasi  : %s\n", cfg.normalization);
+fprintf("Spektrum     : %d\n", numel(sampleNames));
+fprintf("Titik/grid   : %d\n", numel(waveNumber));
+fprintf("Keluaran     : %s\n\n", outputFolder);
+fprintf("Catatan: penetapan gugus fungsi merupakan korelasi spektral; " + ...
+    "konfirmasi dengan literatur dan konteks bahan.\n");
+end
+
+%% ========================================================================
+%  FUNGSI KONFIGURASI ILMIAH
+%  ========================================================================
+function regions = defaultSpectralRegions()
+% Upper dan Lower ditulis mengikuti sumbu FTIR yang menurun.
+Upper = [3600; 3000; 1760; 1650; 1420; 1270; 930];
+Lower = [3200; 2800; 1690; 1500; 1310; 950; 870];
+Code = [ ...
+    "O-H"
+    "C-H"
+    "C=O"
+    "C=C aromatik"
+    "tekukan C-H"
+    "C-O / C-O-C"
+    "\beta-glikosidik"];
+Description = [ ...
+    "Regangan O-H; selulosa, hemiselulosa, lignin, dan air terikat"
+    "Regangan C-H alifatik (CH2/CH3)"
+    "Regangan C=O gugus asetil/ester; terutama hemiselulosa"
+    "Vibrasi kerangka aromatik lignin; dapat dipengaruhi air teradsorpsi"
+    "Tekukan C-H; selulosa dan hemiselulosa"
+    "Wilayah sidik jari karbohidrat/polisakarida"
+    "Vibrasi ikatan beta-glikosidik; indikator selulosa"];
+regions = table(Upper, Lower, Code, Description);
+end
+
+function peaks = defaultPeakAssignments()
+No = (1:9)';
+Wavenumber_cm_1 = [ ...
+    3323.52
+    2913.48
+    1729.86
+    1605.15
+    1367.45
+    1231.43
+    1102.48
+    1025.96
+     899.05];
+SD_cm_1 = [12.30; 7.94; 3.26; 12.29; 0.40; 1.46; 0.76; 0.42; 1.12];
+RSD_percent = [0.370; 0.273; 0.188; 0.766; 0.029; 0.119; 0.069; 0.041; 0.125];
+ShortLabel = [ ...
+    "O-H"
+    "C-H"
+    "C=O"
+    "C=C aromatik"
+    "tekukan C-H"
+    "C-O"
+    "C-O / C-O-C"
+    "C-O dominan"
+    "beta-glikosidik"];
+Vibration = [ ...
+    "Regangan O-H"
+    "Regangan C-H (CH2/CH3)"
+    "Regangan C=O gugus asetil dan ester"
+    "Vibrasi kerangka aromatik C=C"
+    "Tekukan C-H"
+    "Regangan C-O"
+    "Regangan C-O dan C-O-C"
+    "Regangan C-O dominan"
+    "Vibrasi ikatan beta-glikosidik"];
+RelatedComponent = [ ...
+    "Selulosa, hemiselulosa, lignin, dan air terikat"
+    "Rantai alifatik komponen lignoselulosa"
+    "Terutama hemiselulosa"
+    "Lignin; kemungkinan kontribusi air teradsorpsi"
+    "Selulosa dan hemiselulosa"
+    "Lignin dan hemiselulosa"
+    "Fraksi karbohidrat"
+    "Polisakarida"
+    "Selulosa"];
+peaks = table(No, Wavenumber_cm_1, SD_cm_1, RSD_percent, ...
+    ShortLabel, Vibration, RelatedComponent);
+end
+
+%% ========================================================================
+%  FUNGSI PEMBACAAN DAN PENGOLAHAN DATA
+%  ========================================================================
+function inputFile = resolveInputFile(configuredPath)
+if strlength(configuredPath) > 0
+    inputFile = string(configuredPath);
+    if ~isfile(inputFile)
+        error("File yang ditetapkan tidak ditemukan: %s", inputFile);
+    end
+    return;
+end
+
+[fileName, folderName] = uigetfile( ...
+    {'*.xlsx;*.xls;*.csv;*.txt', ...
+    'Data spektrum (*.xlsx, *.xls, *.csv, *.txt)'}, ...
+    'Pilih data FTIR-ATR');
+if isequal(fileName, 0)
+    inputFile = "";
+else
+    inputFile = string(fullfile(folderName, fileName));
+end
+end
+
+function [raw, sheetUsed] = readSpectralFile(inputFile, requestedSheet)
+[~, ~, extension] = fileparts(inputFile);
+extension = lower(string(extension));
+sheetUsed = "";
+
+if extension == ".xlsx" || extension == ".xls"
+    availableSheets = string(sheetnames(inputFile));
+    if isempty(availableSheets)
+        error("File Excel tidak memiliki lembar yang dapat dibaca.");
+    end
+    if strlength(requestedSheet) == 0
+        sheetUsed = availableSheets(1);
+    else
+        sheetUsed = string(requestedSheet);
+        if ~any(strcmpi(sheetUsed, availableSheets))
+            warning("Lembar '%s' tidak ditemukan. Menggunakan '%s'.", ...
+                sheetUsed, availableSheets(1));
+            sheetUsed = availableSheets(1);
+        end
+    end
+    raw = readcell(inputFile, 'Sheet', sheetUsed);
+elseif extension == ".csv" || extension == ".txt"
+    raw = readcell(inputFile);
+else
+    error("Format file tidak didukung: %s", extension);
+end
+end
+
+function numericMatrix = cellsToNumeric(raw)
+numericMatrix = nan(size(raw));
+for r = 1:size(raw, 1)
+    for c = 1:size(raw, 2)
+        value = raw{r, c};
+        if isnumeric(value) && isscalar(value)
+            numericMatrix(r, c) = double(value);
+        elseif islogical(value) && isscalar(value)
+            numericMatrix(r, c) = double(value);
+        elseif ischar(value) || isstring(value)
+            token = strtrim(string(value));
+            if token ~= ""
+                parsed = str2double(token);
+                if isnan(parsed)
+                    parsed = str2double(strrep(token, ",", "."));
+                end
+                numericMatrix(r, c) = parsed;
+            end
+        end
+    end
+end
+end
+
+function dataStartRow = findDataStartRow(numericMatrix, minDataPoints)
+numericCount = sum(isfinite(numericMatrix), 2);
+candidates = find(numericCount >= 2);
+if isempty(candidates)
+    error("Tidak ditemukan baris data numerik.");
+end
+
+dataStartRow = [];
+for k = 1:numel(candidates)
+    row = candidates(k);
+    rowsRemaining = size(numericMatrix, 1) - row + 1;
+    if rowsRemaining >= minDataPoints
+        dataStartRow = row;
+        break;
+    end
+end
+if isempty(dataStartRow)
+    error("Jumlah baris numerik lebih sedikit daripada batas minimum.");
+end
+end
+
+function pairs = detectSpectrumPairs(dataMatrix, minDataPoints)
+nColumns = size(dataMatrix, 2);
+pairs = zeros(0, 2);
+
+% Pola utama: pasangan berdampingan X1-Y1, X2-Y2, dan seterusnya.
+for c = 1:(nColumns - 1)
+    x = dataMatrix(:, c);
+    y = dataMatrix(:, c + 1);
+    if isWavenumberColumn(x, minDataPoints) && ...
+            sum(isfinite(x) & isfinite(y)) >= minDataPoints
+        pairs(end + 1, :) = [c c + 1]; %#ok<AGROW>
+    end
+end
+
+% Hilangkan kandidat yang memakai kolom sinyal pasangan sebelumnya sebagai X.
+if ~isempty(pairs)
+    keep = true(size(pairs, 1), 1);
+    for k = 2:size(pairs, 1)
+        if pairs(k, 1) == pairs(k - 1, 2)
+            keep(k) = false;
+        end
+    end
+    pairs = pairs(keep, :);
+end
+
+% Pola alternatif: satu kolom X bersama, lalu beberapa kolom Y.
+if size(pairs, 1) <= 1
+    xCandidates = find(arrayfun(@(c) ...
+        isWavenumberColumn(dataMatrix(:, c), minDataPoints), ...
+        1:nColumns));
+    if numel(xCandidates) == 1
+        xColumn = xCandidates(1);
+        sharedPairs = zeros(0, 2);
+        for c = 1:nColumns
+            if c == xColumn
+                continue;
+            end
+            valid = isfinite(dataMatrix(:, xColumn)) & ...
+                isfinite(dataMatrix(:, c));
+            if sum(valid) >= minDataPoints
+                sharedPairs(end + 1, :) = [xColumn c]; %#ok<AGROW>
+            end
+        end
+        if size(sharedPairs, 1) > size(pairs, 1)
+            pairs = sharedPairs;
+        end
+    end
+end
+end
+
+function answer = isWavenumberColumn(x, minDataPoints)
+x = x(isfinite(x));
+if numel(x) < minDataPoints || (max(x) - min(x)) < 100
+    answer = false;
+    return;
+end
+d = diff(x);
+d = d(d ~= 0);
+if isempty(d)
+    answer = false;
+    return;
+end
+monotonicFraction = max(mean(d > 0), mean(d < 0));
+answer = monotonicFraction >= 0.95;
+end
+
+function [spectra, sampleNames] = extractSpectra(raw, numericRaw, ...
+    dataStartRow, pairs, minDataPoints)
+nSpectra = size(pairs, 1);
+spectra = repmat(struct('x', [], 'y', []), nSpectra, 1);
+sampleNames = strings(nSpectra, 1);
+
+for k = 1:nSpectra
+    xColumn = pairs(k, 1);
+    yColumn = pairs(k, 2);
+    x = numericRaw(dataStartRow:end, xColumn);
+    y = numericRaw(dataStartRow:end, yColumn);
+    valid = isfinite(x) & isfinite(y);
+    x = x(valid);
+    y = y(valid);
+    if numel(x) < minDataPoints
+        error("Spektrum %d tidak memiliki cukup titik data.", k);
+    end
+
+    [x, order] = sort(x, "ascend");
+    y = y(order);
+    [x, uniqueIndex] = unique(x, "stable");
+    y = y(uniqueIndex);
+    spectra(k).x = x;
+    spectra(k).y = y;
+    sampleNames(k) = findSampleName(raw, dataStartRow, ...
+        xColumn, yColumn, k);
+end
+
+sampleNames = string(matlab.lang.makeUniqueStrings(cellstr(sampleNames)));
+end
+
+function sampleName = findSampleName(raw, dataStartRow, ...
+    xColumn, yColumn, spectrumNumber)
+sampleName = "";
+genericTerms = ["wavenumber", "wave number", "bilangan gelombang", ...
+    "transmittance", "transmitansi", "absorbance", "absorbansi", ...
+    "cm-1", "cm^-1", "%"];
+
+headerRows = max(1, dataStartRow - 6):(dataStartRow - 1);
+candidateColumns = unique([xColumn yColumn]);
+for r = headerRows
+    for c = candidateColumns
+        if r > size(raw, 1) || c > size(raw, 2)
+            continue;
+        end
+        value = raw{r, c};
+        if ischar(value) || isstring(value)
+            candidate = strtrim(string(value));
+            if candidate == ""
+                continue;
+            end
+            lowerCandidate = lower(candidate);
+            isGeneric = any(contains(lowerCandidate, genericTerms));
+            if ~isGeneric
+                sampleName = candidate;
+                return;
+            end
+        end
+    end
+end
+sampleName = "Spektrum-" + compose("%02d", spectrumNumber);
+end
+
+function [commonX, signalMatrix] = placeOnCommonGrid(spectra)
+nSpectra = numel(spectra);
+lowerBound = max(arrayfun(@(s) min(s.x), spectra));
+upperBound = min(arrayfun(@(s) max(s.x), spectra));
+if lowerBound >= upperBound
+    commonX = [];
+    signalMatrix = [];
+    return;
+end
+
+baseX = spectra(1).x;
+baseX = baseX(baseX >= lowerBound & baseX <= upperBound);
+commonX = sort(baseX, "descend");
+signalMatrix = nan(numel(commonX), nSpectra);
+for k = 1:nSpectra
+    signalMatrix(:, k) = interp1(spectra(k).x, spectra(k).y, ...
+        commonX, "linear", NaN);
+end
+
+completeRows = all(isfinite(signalMatrix), 2);
+commonX = commonX(completeRows);
+signalMatrix = signalMatrix(completeRows, :);
+end
+
+function [processed, signalType, yLabel] = processSignals(signalMatrix, cfg)
+signalType = lower(string(cfg.signalType));
+if signalType == "auto"
+    finiteValues = signalMatrix(isfinite(signalMatrix));
+    medianValue = median(finiteValues);
+    maximumValue = max(finiteValues);
+    if medianValue >= 0.50 && medianValue <= 1.20 && maximumValue <= 1.50
+        signalType = "fraction_transmittance";
+    elseif medianValue > 2 || maximumValue > 5
+        signalType = "percent_transmittance";
+    else
+        signalType = "absorbance";
+    end
+end
+
+switch signalType
+    case "fraction_transmittance"
+        processed = 100 .* signalMatrix;
+        isTransmittance = true;
+    case "percent_transmittance"
+        processed = signalMatrix;
+        isTransmittance = true;
+    case "absorbance"
+        processed = signalMatrix;
+        isTransmittance = false;
+    otherwise
+        error("cfg.signalType tidak dikenali: %s", signalType);
+end
+
+normalization = lower(string(cfg.normalization));
+for k = 1:size(processed, 2)
+    y = processed(:, k);
+    switch normalization
+        case "none"
+            % Tidak ada perubahan.
+        case "max"
+            scale = max(abs(y));
+            if scale > eps
+                if isTransmittance
+                    y = 100 .* y ./ max(y);
+                else
+                    y = y ./ scale;
+                end
+            end
+        case "minmax"
+            denominator = max(y) - min(y);
+            if denominator > eps
+                y = (y - min(y)) ./ denominator;
+                if isTransmittance
+                    y = 100 .* y;
+                end
+            end
+        otherwise
+            error("cfg.normalization tidak dikenali: %s", normalization);
+    end
+    processed(:, k) = y;
+end
+
+if isTransmittance
+    if normalization == "none"
+        yLabel = "Transmitansi (%)";
+    else
+        yLabel = "Transmitansi ternormalisasi (%)";
+    end
+else
+    if normalization == "none"
+        yLabel = "Absorbansi (a.u.)";
+    else
+        yLabel = "Absorbansi ternormalisasi (a.u.)";
+    end
+end
+end
+
+%% ========================================================================
+%  FUNGSI PEMBUATAN GAMBAR
+%  ========================================================================
+function fig = makeDetailedFigure(x, Y, sampleNames, cfg, yLabel)
+fig = figure('Color', 'w', 'Position', [50 50 1600 1000], ...
+    'Name', 'Overlay FTIR-ATR detail');
+layout = tiledlayout(fig, 5, 1, 'TileSpacing', 'compact', ...
+    'Padding', 'compact');
+ax = nexttile(layout, 1, [4 1]);
+
+plotSpectralAxes(ax, x, Y, sampleNames, cfg, yLabel, ...
+    cfg.xLimits, true, true);
+title(ax, cfg.figureTitle, 'FontWeight', 'bold', 'FontSize', 14);
+
+infoAx = nexttile(layout, 5);
+axis(infoAx, [0 1 0 1]);
+axis(infoAx, 'off');
+writeAssignmentPanel(infoAx, cfg.peaks);
+
+annotationText = ...
+    "Keterangan: garis vertikal bernomor menunjukkan posisi pita rata-rata. " + ...
+    "Pita berwarna adalah wilayah korelasi gugus fungsi, bukan batas senyawa yang mutlak.";
+text(infoAx, 0.01, -0.02, annotationText, 'Units', 'normalized', ...
+    'FontName', 'Times New Roman', 'FontSize', 8.5, ...
+    'Color', [0.25 0.25 0.25], 'VerticalAlignment', 'top');
+end
+
+function fig = makeMultipanelFigure(x, Y, sampleNames, cfg, yLabel)
+fig = figure('Color', 'w', 'Position', [60 60 1700 980], ...
+    'Name', 'Overlay FTIR-ATR multipanel');
+layout = tiledlayout(fig, 2, 3, 'TileSpacing', 'compact', ...
+    'Padding', 'compact');
+
+axA = nexttile(layout, 1, [1 3]);
+plotSpectralAxes(axA, x, Y, sampleNames, cfg, yLabel, ...
+    cfg.xLimits, true, true);
+title(axA, "A  Overlay keseluruhan", 'FontWeight', 'bold');
+
+zoomDefinitions = { ...
+    [3700 2750], "B  Regangan O-H dan C-H"; ...
+    [1800 1450], "C  Karbonil dan kerangka aromatik"; ...
+    [1450 800],  "D  Wilayah sidik jari karbohidrat"};
+
+for panel = 1:3
+    ax = nexttile(layout, panel + 3);
+    panelLimits = zoomDefinitions{panel, 1};
+    panelTitle = zoomDefinitions{panel, 2};
+    plotSpectralAxes(ax, x, Y, sampleNames, cfg, yLabel, ...
+        panelLimits, true, false);
+    title(ax, panelTitle, 'FontWeight', 'bold');
+    if panel > 1
+        legend(ax, 'off');
+    end
+end
+
+title(layout, cfg.figureTitle + " — tampilan multipanel", ...
+    'FontWeight', 'bold', 'FontSize', 15);
+end
+
+function plotSpectralAxes(ax, x, Y, sampleNames, cfg, yLabel, ...
+    requestedXLimits, showPeakNumbers, showLegend)
+hold(ax, 'on');
+box(ax, 'on');
+grid(ax, 'on');
+ax.GridAlpha = 0.18;
+ax.MinorGridAlpha = 0.08;
+ax.FontName = 'Times New Roman';
+ax.FontSize = 10.5;
+ax.LineWidth = 0.9;
+ax.XDir = 'reverse';
+
+xHigh = min(max(requestedXLimits), max(x));
+xLow = max(min(requestedXLimits), min(x));
+within = x <= xHigh & x >= xLow;
+if ~any(within)
+    error("Rentang panel %.0f-%.0f cm^-1 tidak tersedia.", ...
+        xHigh, xLow);
+end
+
+panelY = Y(within, :);
+yMinimum = min(panelY, [], 'all');
+yMaximum = max(panelY, [], 'all');
+ySpan = max(yMaximum - yMinimum, eps);
+yLimits = [yMinimum - 0.08 * ySpan, yMaximum + 0.16 * ySpan];
+if ySpan < 1e-6
+    yLimits = [yMinimum - 1, yMaximum + 1];
+end
+
+if cfg.showRegionShading
+    drawSpectralRegions(ax, cfg.regions, cfg.regionColors, ...
+        [xHigh xLow], yLimits);
+end
+
+nSpectra = size(Y, 2);
+curveHandles = gobjects(nSpectra, 1);
+for k = 1:nSpectra
+    color = cfg.lineColors(mod(k - 1, size(cfg.lineColors, 1)) + 1, :);
+    curveHandles(k) = plot(ax, x, Y(:, k), ...
+        'LineWidth', cfg.lineWidth, 'Color', color, ...
+        'DisplayName', sampleNames(k));
+end
+
+if cfg.showPeakMarkers
+    drawPeakMarkers(ax, cfg.peaks, [xHigh xLow], yLimits, ...
+        showPeakNumbers);
+end
+
+% Batas sumbu MATLAB harus ditulis menaik; XDir="reverse" membalik tampilan.
+xlim(ax, [xLow xHigh]);
+ylim(ax, yLimits);
+xlabel(ax, "Bilangan gelombang (cm^{-1})", ...
+    'Interpreter', 'tex', 'FontWeight', 'bold');
+ylabel(ax, yLabel, 'FontWeight', 'bold');
+
+if showLegend
+    legend(ax, curveHandles, sampleNames, 'Location', 'northoutside', ...
+        'Orientation', 'horizontal', 'NumColumns', ...
+        min(numel(sampleNames), 4), 'Box', 'off');
+end
+end
+
+function drawSpectralRegions(ax, regions, colors, xLimits, yLimits)
+for k = 1:height(regions)
+    upper = min(regions.Upper(k), max(xLimits));
+    lower = max(regions.Lower(k), min(xLimits));
+    if lower >= upper
+        continue;
+    end
+    color = colors(mod(k - 1, size(colors, 1)) + 1, :);
+    patch(ax, [upper lower lower upper], ...
+        [yLimits(1) yLimits(1) yLimits(2) yLimits(2)], color, ...
+        'FaceAlpha', 0.075, 'EdgeColor', 'none', ...
+        'HandleVisibility', 'off');
+    labelY = yLimits(2) - 0.035 * diff(yLimits);
+    text(ax, mean([upper lower]), labelY, regions.Code(k), ...
+        'HorizontalAlignment', 'center', ...
+        'VerticalAlignment', 'top', 'FontSize', 8.2, ...
+        'Color', 0.72 .* color, 'FontWeight', 'bold', ...
+        'Interpreter', 'tex', 'Clipping', 'on');
+end
+end
+
+function drawPeakMarkers(ax, peaks, xLimits, yLimits, showNumbers)
+ySpan = diff(yLimits);
+for k = 1:height(peaks)
+    wave = peaks.Wavenumber_cm_1(k);
+    if wave > max(xLimits) || wave < min(xLimits)
+        continue;
+    end
+    xline(ax, wave, ':', 'Color', [0.38 0.38 0.38], ...
+        'LineWidth', 0.75, 'HandleVisibility', 'off');
+    if showNumbers
+        stagger = mod(k - 1, 3);
+        labelY = yLimits(2) - (0.075 + 0.055 * stagger) * ySpan;
+        text(ax, wave, labelY, string(peaks.No(k)), ...
+            'HorizontalAlignment', 'center', ...
+            'VerticalAlignment', 'top', 'FontWeight', 'bold', ...
+            'FontSize', 8.3, 'Color', [0.16 0.16 0.16], ...
+            'BackgroundColor', [1 1 1], ...
+            'Margin', 0.5, 'Clipping', 'on');
+    end
+end
+end
+
+function writeAssignmentPanel(ax, peaks)
+nPeaks = height(peaks);
+leftEnd = ceil(nPeaks / 2);
+leftText = assignmentText(peaks(1:leftEnd, :));
+rightText = assignmentText(peaks((leftEnd + 1):end, :));
+
+text(ax, 0.01, 0.98, leftText, 'Units', 'normalized', ...
+    'VerticalAlignment', 'top', 'HorizontalAlignment', 'left', ...
+    'FontName', 'Times New Roman', 'FontSize', 8.7, ...
+    'Interpreter', 'none');
+text(ax, 0.51, 0.98, rightText, 'Units', 'normalized', ...
+    'VerticalAlignment', 'top', 'HorizontalAlignment', 'left', ...
+    'FontName', 'Times New Roman', 'FontSize', 8.7, ...
+    'Interpreter', 'none');
+end
+
+function outputText = assignmentText(peakSubset)
+lines = strings(height(peakSubset), 1);
+for k = 1:height(peakSubset)
+    lines(k) = sprintf( ...
+        "%d. %.2f ± %.2f cm^-1 — %s; %s.", ...
+        peakSubset.No(k), peakSubset.Wavenumber_cm_1(k), ...
+        peakSubset.SD_cm_1(k), peakSubset.Vibration(k), ...
+        peakSubset.RelatedComponent(k));
+end
+outputText = strjoin(lines, newline);
+end
+
+%% ========================================================================
+%  FUNGSI PENYIMPANAN
+%  ========================================================================
+function peakOutput = makePeakOutput(peaks, x, Y, sampleNames)
+peakOutput = peaks;
+validNames = matlab.lang.makeValidName(cellstr("Signal_" + sampleNames));
+validNames = matlab.lang.makeUniqueStrings(validNames);
+for sample = 1:numel(sampleNames)
+    values = nan(height(peaks), 1);
+    for k = 1:height(peaks)
+        [~, nearestIndex] = min(abs(x - peaks.Wavenumber_cm_1(k)));
+        values(k) = Y(nearestIndex, sample);
+    end
+    peakOutput.(validNames{sample}) = values;
+end
+peakOutput.Caution = repmat( ...
+    "Korelasi spektral; konfirmasi dengan literatur dan konteks bahan.", ...
+    height(peaks), 1);
+end
+
+function saveFigureSet(fig, outputFolder, baseName, dpi)
+pngPath = fullfile(outputFolder, baseName + ".png");
+pdfPath = fullfile(outputFolder, baseName + ".pdf");
+figPath = fullfile(outputFolder, baseName + ".fig");
+
+exportgraphics(fig, pngPath, 'Resolution', dpi, ...
+    'BackgroundColor', 'white');
+exportgraphics(fig, pdfPath, 'ContentType', 'vector', ...
+    'BackgroundColor', 'white');
+savefig(fig, figPath);
+end
